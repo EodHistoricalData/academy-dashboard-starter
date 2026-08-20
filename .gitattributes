@@ -1,0 +1,10 @@
+# This repo gets forked and cloned on every OS, so line endings are normalised in the
+# repository and left alone on checkout. Without this, a clone made on Windows commits
+# CRLF into scripts/precommit-key-guard.sh, and the first person to run it on macOS or
+# Linux gets "bad interpreter: /usr/bin/env sh^M" with no clue why.
+* text=auto eol=lf
+
+# Binary, never touched.
+*.png binary
+*.ico binary
+*.woff2 binary

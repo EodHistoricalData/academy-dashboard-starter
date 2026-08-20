@@ -1,0 +1,57 @@
+@import "tailwindcss";
+
+/* Geist is loaded in layout.tsx and exposed as --font-geist-sans on <html>. Wiring it
+   into Tailwind's own --font-sans is what makes `font-sans` and the body default agree.
+   The create-next-app scaffold shipped `body { font-family: Arial }` here, which quietly
+   overrode the font it had just loaded: every element that did not carry an explicit
+   font utility rendered in Arial. */
+@theme inline {
+  --font-sans: var(--font-geist-sans);
+  --font-mono: var(--font-geist-mono);
+}
+
+body {
+  font-family: var(--font-sans);
+  /* Tabular figures by default. This is an instrument panel: a column of prices that does
+     not line up is the one thing it exists to get right, and opting in per component is
+     how a stray figure ends up proportional. */
+  font-variant-numeric: tabular-nums;
+  -webkit-font-smoothing: antialiased;
+}
+
+/* The one motion curve this project uses. Sharper than the built-in ease-out, which is
+   too weak to read as deliberate. Add motion by reaching for this, not for `all`. */
+@theme inline {
+  --ease-out-strong: cubic-bezier(0.23, 1, 0.32, 1);
+}
+
+/* A focus ring that is never removed and never depends on colour alone. `:focus-visible`
+   rather than `:focus`, so a mouse click on a link does not light it up. */
+:where(a, button, [tabindex]):focus-visible {
+  outline: 2px solid currentColor;
+  outline-offset: 2px;
+  border-radius: 2px;
+}
+
+a {
+  transition: color 150ms var(--ease-out-strong);
+}
+
+/* Touch devices fire hover on tap, so a hover treatment there is a false positive that
+   sticks after the finger leaves. */
+@media (hover: hover) and (pointer: fine) {
+  a:hover {
+    color: currentColor;
+    text-decoration-thickness: 2px;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    transition-duration: 0.01ms !important;
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+  }
+}

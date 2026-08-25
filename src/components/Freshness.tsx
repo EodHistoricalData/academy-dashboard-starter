@@ -59,16 +59,19 @@ function describeAge(minutes: number): string {
  * timestamp into a claim.
  *
  * The thresholds are about what the tool can be asked to do, not about plan tiers: a
- * minute of lag is scheduling noise; anything past about a quarter of an hour is a feed
- * you cannot alert on; past a day the number is an end-of-day close wearing a quote's
- * clothes.
+ * minute of lag is scheduling noise; past a day the number is an end-of-day close wearing
+ * a quote's clothes.
+ *
+ * The band in between states the lag and its consequence and stops there. An earlier
+ * draft added "which is the usual delayed feed", which is true of fifteen minutes and
+ * false of two, and the panel rendered it under the words "2 min old".
  */
 function classify(minutes: number): string {
   if (minutes < 2) {
     return "Effectively live. Anything that has to act the moment a price moves (an alert, a live board) can be built on this.";
   }
   if (minutes < 25) {
-    return `Behind by ${minutes} minutes, which is the usual delayed feed. Fine for watching, checking and reporting. An alert built on this fires ${minutes} minutes late, so do not build one that assumes otherwise.`;
+    return `Behind by ${minutes} minutes. Fine for watching, checking and reporting. An alert built on this fires ${minutes} minutes late, so do not build one that assumes otherwise.`;
   }
   if (minutes < 60 * 20) {
     return "Hours behind. This is a snapshot, not a quote. It answers where something closed and cannot answer where it is now.";

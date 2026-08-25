@@ -19,11 +19,3 @@ AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
 LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
 OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 SOFTWARE.
-
----
-
-This licence covers the CODE in this repository only.
-
-Market data retrieved through the EODHD APIs is licensed separately by EODHD and
-is not granted by this licence. See the README's "Licence and data use" section,
-and https://eodhd.com/financial-apis/terms-conditions.

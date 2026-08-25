@@ -1,0 +1,20 @@
+The MIT licence in LICENSE covers the CODE in this repository.
+
+It does not cover the market data this code retrieves. That data is licensed
+separately by EODHD, and the packages on their pricing page are, in their own
+words, "intended for personal use only as commercial use requires a more
+thorough approach to licensing and data use."
+
+  Personal vs commercial use
+  https://eodhd.com/financial-apis/commercial-vs-personal-license-use
+
+  Terms and conditions (the authority; this file is not)
+  https://eodhd.com/financial-apis/terms-conditions
+
+  Questions
+  support@eodhistoricaldata.com
+
+Running this for yourself is personal use. Putting it on a public URL where
+other people read the numbers, or building it into something you sell, is not.
+
+Nothing this application displays is investment advice.

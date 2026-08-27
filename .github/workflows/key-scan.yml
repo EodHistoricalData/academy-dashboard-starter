@@ -18,4 +18,9 @@ jobs:
       - uses: actions/checkout@v4
         with:
           fetch-depth: 0
-      - run: ./scripts/key-scan.sh
+      # Invoked through `sh` rather than as `./scripts/key-scan.sh`. The executable bit
+      # is set in the index, but a mode bit is a thing that can be lost — by a Windows
+      # checkout, by a zip, by a contributor whose core.filemode is off — and this check
+      # failing open would be worse than it not existing. It failed exactly this way on
+      # its own first run.
+      - run: sh scripts/key-scan.sh

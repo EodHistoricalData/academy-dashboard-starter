@@ -1,0 +1,21 @@
+# Fails the build on a key-shaped string anywhere in the tree.
+#
+# Required by the course this starter belongs to, which teaches the check and then hands
+# the learner a repository that did not have one. The pre-commit hook is the first line
+# and is skippable by design; this is the line that is not.
+name: Key scan
+
+on:
+  push:
+  pull_request:
+
+jobs:
+  scan:
+    runs-on: ubuntu-latest
+    steps:
+      # Full history is deliberate. A shallow clone scans only the tip, and a key that
+      # arrived three commits ago is exactly the case worth catching.
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - run: ./scripts/key-scan.sh

@@ -24,7 +24,7 @@ export function NoteField({ code }: { code: string }) {
       }}
       placeholder="Why I watch it"
       aria-label={`Note for ${code}`}
-      className="w-full min-w-0 rounded border border-transparent bg-transparent px-1.5 py-1 text-sm text-zinc-900 placeholder:text-zinc-400 hover:border-zinc-200 focus:border-zinc-400 dark:text-zinc-100 dark:placeholder:text-zinc-500 dark:hover:border-zinc-800 dark:focus:border-zinc-600"
+      className="w-full min-w-40 rounded border border-transparent bg-transparent px-1.5 py-1 text-sm text-zinc-900 placeholder:text-zinc-400 hover:border-zinc-200 focus:border-zinc-400 dark:text-zinc-100 dark:placeholder:text-zinc-500 dark:hover:border-zinc-800 dark:focus:border-zinc-600"
     />
   );
 }

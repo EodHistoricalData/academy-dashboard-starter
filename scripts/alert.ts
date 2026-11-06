@@ -6,6 +6,7 @@
 //
 // Run through tsx: plain Node does not resolve the starter's `@/` import alias.
 
+import { alertMessage, deliver, deliveryChannel } from "@/lib/alerts/deliver";
 import { evaluate, type Bar } from "@/lib/alerts/evaluate";
 import { readRules, type Rule } from "@/lib/alerts/rules";
 import { estimateCalls } from "@/lib/cost";
@@ -15,8 +16,10 @@ import { eodhdFetch, isMock, redactKey } from "@/lib/eodhd";
 const DAYS_BACK = 10;
 
 async function main(now: Date): Promise<void> {
-  // Before any fetch: a rule that cannot work stops the run here, naming itself.
+  // Before any fetch: a rule that cannot work, or a channel missing a variable, stops the
+  // run here, naming the rule or the variable.
   const rules = await readRules();
+  const channel = deliveryChannel(process.env);
   const symbols = [...new Set(rules.map((r) => r.symbol))];
 
   const live = symbols.reduce((sum, s) => sum + (estimateCalls(`eod/${s}`) ?? NaN), 0);
@@ -34,17 +37,29 @@ async function main(now: Date): Promise<void> {
     console.log(`read ${symbol}: ${series.length} bars, newest ${series.at(-1)?.date ?? "none"}`);
   }
 
+  const fired: string[] = [];
   for (const rule of rules) {
     const series = bars.get(rule.symbol) ?? [];
     const last = series.at(-1);
     const where = last ? `close ${last.close} on ${last.date}` : "no bars";
     const line = `${rule.op === "crosses_above" ? "above" : "below"} ${rule.value}`;
-    console.log(
-      evaluate(rule, series)
-        ? `FIRED  ${rule.id}  ${rule.symbol} ${where}, crossed ${line}`
-        : `quiet  ${rule.id}  ${rule.symbol} ${where}, threshold ${line}`,
-    );
+    if (last && evaluate(rule, series)) {
+      console.log(`FIRED  ${rule.id}  ${rule.symbol} ${where}, crossed ${line}`);
+      fired.push(`${rule.symbol} closed at ${last.close} on ${last.date}, ${line} (${rule.id})`);
+    } else {
+      console.log(`quiet  ${rule.id}  ${rule.symbol} ${where}, threshold ${line}`);
+    }
   }
+
+  // One message for the run, or none. The log says channel, status and count: never the
+  // URL or a header, which is where the Telegram token and the Resend key travel.
+  const message = alertMessage(fired);
+  if (message === null) {
+    console.log(`nothing to send: no rule fired (${channel.kind})`);
+    return;
+  }
+  const status = await deliver(channel, message);
+  console.log(`delivered: ${channel.kind}, 1 message${status === null ? "" : ` (HTTP ${status})`}`);
 }
 
 /** One request per symbol, oldest bar first. A failed request names the rules it serves. */

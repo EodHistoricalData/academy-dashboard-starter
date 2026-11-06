@@ -83,3 +83,19 @@ would have prevented a bug). CI on the pull request decides what merges.
   and the shortlist says it is not a recommendation.
 - Failure: the loading skeleton had no navigation, so the page jumped when data landed; it
   carries the same two links now.
+
+## The cockpit, reviewed whole (Build a Dashboard, unit 3)
+
+My own pass, before any second reader:
+
+- Leaks: every store read and write goes through `currentUser()` and takes the user first
+  (`src/lib/store.ts`); a cross-user GET is a 404 in `tests/store.test.ts`, but only for
+  saved screens, not for layouts. The layout export holds names, titles, symbols and
+  filters: nothing private today, and it would carry anything a config ever holds.
+- Cost: one union of needs per load (13 calls live on the default layout). Switching
+  layouts asks for nothing cached. A panel cannot be collapsed yet, so the question "does
+  a collapsed panel still cost" has no answer in the product: every panel always costs.
+- Lies: the home page's time is the oldest quote; each panel shows its own age from the
+  data's dates. The quote panel prints the last trade time.
+- Failure: a store that does not answer leaves the cockpit drawing and says the layout was
+  not saved; one panel's crash stays in that panel.

@@ -56,3 +56,18 @@ Unit 3 of Build a Screener, run on the screener as unit 2 left it:
   value upstream (`tests/format.test.ts`).
 - Lies: the yield conversion lived in a column, untested. Now `asPercent` in
   `src/lib/format.ts`, tested on 0.0002.
+
+## A reader who did not write it
+
+On a branch, with a pull request open, in a fresh session (or another model) that carries
+nothing from the one that wrote the change:
+
+```
+Review the diff of this branch against main as code you did not write. Use the four
+lenses in REVIEW.md: leaks, cost, lies, failure. List each problem with the line it is on
+and what it would cost. Do not fix anything.
+```
+
+Sort what comes back into real (a line and a consequence you can reproduce: failing test
+first, then the fix), plausible and wrong (check, then discard), and taste (ignore unless it
+would have prevented a bug). CI on the pull request decides what merges.

@@ -25,13 +25,17 @@ export function loadNotes(): Notes {
  */
 export function parseNotes(raw: string | null): Notes {
   try {
-    const value: unknown = JSON.parse(raw ?? "{}");
-    return value !== null && typeof value === "object" && !Array.isArray(value)
-      ? (value as Notes)
-      : {};
+    return notesFrom(JSON.parse(raw ?? "{}"));
   } catch {
     return {};
   }
+}
+
+/** The same check on a value already parsed: the server's copy arrives as JSON. */
+export function notesFrom(value: unknown): Notes {
+  return value !== null && typeof value === "object" && !Array.isArray(value)
+    ? (value as Notes)
+    : {};
 }
 
 /** The notes with one ticker's note replaced. An empty note removes the entry. */

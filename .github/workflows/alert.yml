@@ -8,16 +8,25 @@
 # A schedule runs only from the default branch, and a fork starts with Actions off: enable
 # them in the fork's Actions tab.
 #
-# Live: each run spends one call per distinct symbol in alerts/rules.json and sends one
-# Telegram message when a rule fires. It needs three repository secrets, which you type
-# yourself (`gh secret set NAME`): EODHD_API_KEY, TELEGRAM_BOT_TOKEN, TELEGRAM_CHAT_ID.
-# Without them the run fails at its start, naming the missing one, before any call.
+# Live: each run spends one call per distinct symbol in alerts/rules.json not yet judged
+# today, and sends one Telegram message when a rule fires. It needs three repository
+# secrets, which you type yourself (`gh secret set NAME`): EODHD_API_KEY,
+# TELEGRAM_BOT_TOKEN, TELEGRAM_CHAT_ID. Without them the run fails at its start, naming the
+# missing one, before any call.
+#
+# After every run the job commits alerts/state.json back, so the next run, on a fresh
+# machine, knows what was already judged and sent. Pull before you work: main moves.
 name: Alert
 
 on:
-  # Every weekday at 17:30 New York time, whatever UTC says.
   schedule:
+    # Every weekday at 17:30 New York time, whatever UTC says.
     - cron: "30 17 * * 1-5"
+      timezone: "America/New_York"
+    # 20:30 New York is 00:30 UTC in summer and 01:30 in winter: after the daily limit
+    # resets at midnight GMT, still the same trading day. A run that met a 402 at 17:30
+    # gets another go; if the first run worked, this one finds nothing new and spends 0.
+    - cron: "30 20 * * 1-5"
       timezone: "America/New_York"
   # A "Run workflow" button, and `gh workflow run alert.yml`.
   workflow_dispatch:
@@ -28,8 +37,9 @@ concurrency:
   group: alert
   cancel-in-progress: false
 
+# Write, to commit alerts/state.json. A push made with the job's own token starts no runs.
 permissions:
-  contents: read
+  contents: write
 
 jobs:
   alert:
@@ -41,11 +51,26 @@ jobs:
         with:
           node-version-file: .nvmrc
           cache: npm
-      - run: npm ci
+      # --ignore-scripts: plain `npm ci` runs the "prepare" script, which switches on the
+      # repository's git hooks, and the state commit below would then run pre-push — the
+      # whole test suite and a production build — on every run, and fail to save the state
+      # whenever any of it failed. The hooks are for people's commits, not the bot's.
+      - run: npm ci --ignore-scripts
       # The secrets go into this step's environment and no other.
-      - run: npm run alert
+      - name: Alert
+        run: npm run alert
         env:
           ALERT_DELIVERY: telegram
           EODHD_API_KEY: ${{ secrets.EODHD_API_KEY }}
           TELEGRAM_BOT_TOKEN: ${{ secrets.TELEGRAM_BOT_TOKEN }}
           TELEGRAM_CHAT_ID: ${{ secrets.TELEGRAM_CHAT_ID }}
+      # Also after a failed run: a half-finished run's record (a key left pending, a symbol
+      # already judged) is what stops the next run repeating it. Ids, keys and dates only.
+      - name: Save state
+        if: always()
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add alerts/state.json
+          git diff --cached --quiet || git commit -m "chore(alert): state after run"
+          git push

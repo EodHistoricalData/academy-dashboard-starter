@@ -71,11 +71,18 @@ export function alertMessage(fired: string[]): Message | null {
   };
 }
 
-/** Send one message. Returns the HTTP status, or null for the console. */
+/**
+ * Send one message. Returns the HTTP status, or null for the console.
+ *
+ * `idempotencyKey` goes to Resend as the Idempotency-Key header, which it remembers for 24
+ * hours without sending twice. Telegram documents no such key: there a rare duplicate is
+ * the price of never missing an alert.
+ */
 export async function deliver(
   channel: Channel,
   message: Message,
   fetchFn: typeof fetch = fetch,
+  opts: { idempotencyKey?: string } = {},
 ): Promise<number | null> {
   if (channel.kind === "console") {
     console.log(`${message.subject}\n${message.text}`);
@@ -97,6 +104,7 @@ export async function deliver(
             headers: {
               authorization: `Bearer ${channel.apiKey}`,
               "content-type": "application/json",
+              ...(opts.idempotencyKey ? { "idempotency-key": opts.idempotencyKey } : {}),
             },
             body: JSON.stringify({
               from: EMAIL_FROM,

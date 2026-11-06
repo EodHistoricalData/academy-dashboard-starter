@@ -36,6 +36,13 @@ export const SCREEN_COLUMNS: Column<ScreenRow>[] = [
     render: (r) => r.market_capitalization.toLocaleString("en-US"),
   },
   {
+    key: "earnings_share",
+    label: "EPS",
+    align: "right",
+    render: (r) =>
+      r.earnings_share === null ? null : r.earnings_share.toFixed(2),
+  },
+  {
     key: "dividend_yield",
     label: "Yield",
     align: "right",

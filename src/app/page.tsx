@@ -4,6 +4,7 @@ import { Watchlist } from "@/components/Watchlist";
 import { isMock } from "@/lib/eodhd";
 import type { Failure } from "@/lib/failure";
 import { account, ageMinutes, pageLoadCalls, quotes } from "@/lib/quotes";
+import { isAvailable } from "@/lib/rows";
 import { WATCHLIST } from "@/lib/watchlist";
 
 // Server-rendered on every request, never prerendered: a page built at deploy time would
@@ -22,8 +23,9 @@ export default async function Home() {
   const rows = result && "rows" in result ? result.rows : null;
   const failure = result && "failure" in result ? result.failure : null;
 
+  const priced = rows?.filter(isAvailable) ?? [];
   const asOf =
-    rows && rows.length > 0 ? Math.max(...rows.map((r) => r.timestamp)) : null;
+    priced.length > 0 ? Math.max(...priced.map((r) => r.timestamp)) : null;
 
   return (
     <div className="min-h-screen bg-zinc-50 px-6 py-10 font-sans text-zinc-900 dark:bg-zinc-950 dark:text-zinc-100 sm:py-14">

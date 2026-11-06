@@ -116,3 +116,16 @@ The first half of the wall throttles thinking: four attempts spend a free day. T
 half no number of calls fixes: London and Frankfurt are not in this screen at all, and the
 answer does not say so. The counts are from the course's own count of
 `/exchange-symbol-list/US`; this copy runs on fixtures and did not count.
+
+### What felt awkward shipping the two together (the brief for course 4)
+
+- The screener's codes come without the exchange (`NVDA`); the watchlist wants `NVDA.US`.
+  The join has to add the suffix, and gets it from the row's `exchange`.
+- The watchlist's list is a file, so a button cannot add to it. Names from the screen live
+  in a cookie beside it: two homes for one list, and only the cookie's can be removed from
+  the page.
+- Notes, saved screens and the shortlist are three separate browser-storage keys with the
+  same three rules. One store would be one set of rules.
+- Every added name is a call on every watchlist load. The cap of ten is a cost decision
+  made in code; I would rather see it on the page before I click.
+

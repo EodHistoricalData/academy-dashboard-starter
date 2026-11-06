@@ -10,7 +10,7 @@ describe("parseLayout", () => {
       version: CURRENT_VERSION,
       panels: [
         { id: "a", type: "heatmap", title: "From a newer version", config: {}, position: at },
-        { id: "b", type: "quote", title: "Apple", config: { symbol: "AAPL.US" }, position: at },
+        { id: "b", type: "quote", title: "Apple", config: { symbol: "AAPL.US", follows: true }, position: at },
       ],
     });
     expect(layout.panels.map((p) => p.type)).toEqual(["placeholder", "quote"]);
@@ -22,7 +22,7 @@ describe("parseLayout", () => {
       const layout = parseLayout({
         name: "x",
         version: CURRENT_VERSION,
-        panels: [{ id: "q", type: "quote", title: "Q", config: { symbol }, position: at }],
+        panels: [{ id: "q", type: "quote", title: "Q", config: { symbol, follows: true }, position: at }],
       });
       expect(layout.panels[0].type).toBe("placeholder");
     }
@@ -37,7 +37,11 @@ describe("parseLayout", () => {
           id: "s",
           type: "screen",
           title: "S",
-          config: { filters: [{ field: "password", op: "=", value: "x" }], sort: "market_capitalization.desc" },
+          config: {
+            filters: [{ field: "password", op: "=", value: "x" }],
+            sort: "market_capitalization.desc",
+            follows: false,
+          },
           position: at,
         },
       ],
@@ -51,7 +55,11 @@ describe("parseLayout", () => {
       panels: [{ id: "w", type: "watchlist", config: { symbols: ["AAPL.US"] }, position: at }],
     });
     expect(layout.version).toBe(CURRENT_VERSION);
-    expect(layout.panels[0]).toMatchObject({ type: "watchlist", title: "watchlist" });
+    expect(layout.panels[0]).toMatchObject({
+      type: "watchlist",
+      title: "watchlist",
+      config: { symbols: ["AAPL.US"], follows: false },
+    });
   });
 
   it("returns the default when the whole document is not a layout", () => {
@@ -60,7 +68,27 @@ describe("parseLayout", () => {
     expect(parseLayout(DEFAULT_LAYOUT)).toEqual(DEFAULT_LAYOUT);
   });
 
-  it("starts a new user with a watchlist, one screen and the backtest", () => {
-    expect(DEFAULT_LAYOUT.panels.map((p) => p.type)).toEqual(["watchlist", "screen", "backtest"]);
+  it("starts a new user with a watchlist, one screen, a quote and the backtest", () => {
+    expect(DEFAULT_LAYOUT.panels.map((p) => p.type)).toEqual([
+      "watchlist",
+      "screen",
+      "quote",
+      "backtest",
+    ]);
+  });
+
+  it("gives a version 1 document follows: quote panels follow, the rest stay still", () => {
+    const layout = parseLayout({
+      name: "v1",
+      version: 1,
+      panels: [
+        { id: "w", type: "watchlist", title: "W", config: { symbols: ["AAPL.US"] }, position: at },
+        { id: "q", type: "quote", title: "Q", config: { symbol: "AAPL.US" }, position: at },
+      ],
+    });
+    expect(layout.panels.map((p) => (p.config as { follows: boolean }).follows)).toEqual([
+      false,
+      true,
+    ]);
   });
 });

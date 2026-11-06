@@ -18,10 +18,14 @@ export type PanelType = (typeof PANEL_TYPES)[number];
 
 export type Position = { x: number; y: number; w: number; h: number };
 
-export type WatchlistConfig = { symbols: string[] };
-export type ScreenConfig = { filters: Filter[]; sort: Sort };
-export type BacktestConfig = Params & { symbol: string };
-export type QuoteConfig = { symbol: string };
+/**
+ * `follows`: whether the panel shows the selected instrument. Saved with the layout, so the
+ * same panel can follow in one layout and stay pinned in another.
+ */
+export type WatchlistConfig = { symbols: string[]; follows: boolean };
+export type ScreenConfig = { filters: Filter[]; sort: Sort; follows: boolean };
+export type BacktestConfig = Params & { symbol: string; follows: boolean };
+export type QuoteConfig = { symbol: string; follows: boolean };
 
 type Base = { id: string; title: string; position: Position };
 export type Panel =
@@ -34,7 +38,7 @@ export type Panel =
 
 export type Layout = { name: string; version: number; panels: Panel[] };
 
-export const CURRENT_VERSION = 1;
+export const CURRENT_VERSION = 2;
 
 /** A new user meets a cockpit that works: their watchlist, one screen and the backtest. */
 export const DEFAULT_LAYOUT: Layout = {
@@ -45,22 +49,29 @@ export const DEFAULT_LAYOUT: Layout = {
       id: "watchlist",
       type: "watchlist",
       title: "Watchlist",
-      config: { symbols: WATCHLIST },
+      config: { symbols: WATCHLIST, follows: false }, // kept still on purpose
       position: { x: 0, y: 0, w: 2, h: 2 },
     },
     {
       id: "screen",
       type: "screen",
       title: "Big and profitable",
-      config: { filters: MY_FILTERS, sort: DEFAULT_SORT },
+      config: { filters: MY_FILTERS, sort: DEFAULT_SORT, follows: false },
       position: { x: 2, y: 0, w: 2, h: 2 },
+    },
+    {
+      id: "quote",
+      type: "quote",
+      title: "Quote",
+      config: { symbol: WATCHLIST[0], follows: true }, // shows what you select
+      position: { x: 0, y: 2, w: 1, h: 1 },
     },
     {
       id: "backtest",
       type: "backtest",
       title: "SPY.US, 20/50",
-      config: { symbol: "SPY.US", ...BACKTEST_DEFAULTS },
-      position: { x: 0, y: 2, w: 4, h: 1 },
+      config: { symbol: "SPY.US", ...BACKTEST_DEFAULTS, follows: false },
+      position: { x: 1, y: 2, w: 3, h: 1 },
     },
   ],
 };
@@ -68,21 +79,22 @@ export const DEFAULT_LAYOUT: Layout = {
 const MAX_SYMBOLS = 30;
 
 export function parseWatchlistConfig(raw: unknown): WatchlistConfig | null {
-  const c = raw as { symbols?: unknown } | null;
+  const c = raw as { symbols?: unknown; follows?: unknown } | null;
   return Array.isArray(c?.symbols) &&
     c.symbols.length <= MAX_SYMBOLS &&
-    c.symbols.every(isTicker)
-    ? { symbols: [...c.symbols] }
+    c.symbols.every(isTicker) &&
+    typeof c.follows === "boolean"
+    ? { symbols: [...c.symbols], follows: c.follows }
     : null;
 }
 
 export function parseScreenConfig(raw: unknown): ScreenConfig | null {
-  const c = raw as { filters?: unknown; sort?: unknown } | null;
-  if (!Array.isArray(c?.filters)) return null;
+  const c = raw as { filters?: unknown; sort?: unknown; follows?: unknown } | null;
+  if (!Array.isArray(c?.filters) || typeof c.follows !== "boolean") return null;
   const filters = c.filters.map(safe); // the course 2 allowlist
   const sort = safeSort(c.sort);
   return sort !== null && filters.every((f) => f !== null)
-    ? { filters: filters as Filter[], sort }
+    ? { filters: filters as Filter[], sort, follows: c.follows }
     : null;
 }
 
@@ -97,7 +109,8 @@ export function parseBacktestConfig(raw: unknown): BacktestConfig | null {
     (c.fast as number) >= (c.slow as number) ||
     !int(c.costBps, 0, 100) ||
     !int(c.slippageBps, 0, 100) ||
-    (c.fill !== "next-open" && c.fill !== "signal-close")
+    (c.fill !== "next-open" && c.fill !== "signal-close") ||
+    typeof c.follows !== "boolean"
   ) {
     return null;
   }
@@ -108,12 +121,15 @@ export function parseBacktestConfig(raw: unknown): BacktestConfig | null {
     costBps: c.costBps as number,
     slippageBps: c.slippageBps as number,
     fill: c.fill,
+    follows: c.follows,
   };
 }
 
 export function parseQuoteConfig(raw: unknown): QuoteConfig | null {
-  const c = raw as { symbol?: unknown } | null;
-  return isTicker(c?.symbol) ? { symbol: c.symbol } : null;
+  const c = raw as { symbol?: unknown; follows?: unknown } | null;
+  return isTicker(c?.symbol) && typeof c.follows === "boolean"
+    ? { symbol: c.symbol, follows: c.follows }
+    : null;
 }
 
 const CHECK: Record<PanelType, (config: unknown) => object | null> = {
@@ -132,6 +148,16 @@ const MIGRATIONS: Record<number, (doc: RawLayout) => RawLayout> = {
   0: (d) => ({
     ...d,
     panels: d.panels.map((p) => ({ ...p, title: p.title ?? p.type })),
+  }),
+  // Version 1 had no `follows`: quote panels followed the selection, nothing else did.
+  1: (d) => ({
+    ...d,
+    panels: d.panels.map((p) => {
+      const config = (p.config ?? {}) as Record<string, unknown>;
+      return "follows" in config
+        ? p
+        : { ...p, config: { ...config, follows: p.type === "quote" } };
+    }),
   }),
 };
 

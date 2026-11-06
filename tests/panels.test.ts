@@ -8,8 +8,8 @@ describe("the container's union", () => {
   it("asks once for a symbol two panels need", () => {
     expect(
       unionNeeds([
-        WatchlistPanel.dataNeeds({ symbols: ["AAPL.US", "MSFT.US"] }),
-        WatchlistPanel.dataNeeds({ symbols: ["MSFT.US", "NVDA.US"] }),
+        WatchlistPanel.dataNeeds({ symbols: ["AAPL.US", "MSFT.US"], follows: false }),
+        WatchlistPanel.dataNeeds({ symbols: ["MSFT.US", "NVDA.US"], follows: false }),
       ]),
     ).toEqual(["AAPL.US", "MSFT.US", "NVDA.US"]);
   });
@@ -19,7 +19,7 @@ describe("the watchlist panel", () => {
   it("renders a literal row and its note with no mock and no network", () => {
     const html = renderToString(
       createElement(WatchlistPanel.Component, {
-        config: { symbols: ["AAPL.US"] },
+        config: { symbols: ["AAPL.US"], follows: false },
         data: {
           quotes: [
             {
@@ -38,6 +38,7 @@ describe("the watchlist panel", () => {
           screen: null,
           bars: null,
           notes: { "AAPL.US": { note: "Bought at 291" } },
+          selected: null,
         },
         onSelect: () => {},
         onConfigChange: () => {},

@@ -49,3 +49,6 @@ next-env.d.ts
 # Claude Code worktrees and per-user settings
 .claude/worktrees/
 .claude/settings.local.json
+
+# local caches: fetched price history and the backtest run log
+/.cache/

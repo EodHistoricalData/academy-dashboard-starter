@@ -129,3 +129,15 @@ answer does not say so. The counts are from the course's own count of
 - Every added name is a call on every watchlist load. The cap of ten is a cost decision
   made in code; I would rather see it on the page before I click.
 
+
+## Course 3: a backtester beside the two tools
+
+The one honest sentence, written before any code: *Under a cost of 10 basis points a
+trade and fills at the next day's open, on one year of SPY.US daily bars (adjusted close,
+EODHD, pulled once and cached), a rule stated on 6 November 2026 — hold SPY while its
+20-day average is above its 50-day — would have produced this sequence of results.*
+
+The rule was chosen from the course's example, not from looking at a chart of SPY. That is
+what lets "stated in advance" stay in the sentence.
+
+It is a historical simulation. Nothing it prints is advice.

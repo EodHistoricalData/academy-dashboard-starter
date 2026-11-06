@@ -56,3 +56,19 @@ describe("the watchlist says which failure it is", () => {
     });
   });
 });
+
+// Criterion: with no key set and mock mode off, the watchlist says the key is missing and
+// sends nothing. The API answers a missing key and a wrong one with the same 401, so only
+// the tool can tell them apart, and only by looking before it asks.
+describe("no key", () => {
+  it("is reported before any request is sent", async () => {
+    vi.stubEnv("EODHD_API_KEY", "");
+    const fetchMock = vi.fn();
+    vi.stubGlobal("fetch", fetchMock);
+
+    expect(await quotes(["AAPL.US", "MSFT.US"])).toEqual({
+      failure: { kind: "no-key" },
+    });
+    expect(fetchMock).not.toHaveBeenCalled();
+  });
+});

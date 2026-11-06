@@ -27,3 +27,12 @@ cost a build-verify cycle to find; it is invisible in review and obvious on scre
 **`real-time` answers in two shapes.** One ticker gives a bare object, two or more give an
 array. `quotes()` in `src/lib/quotes.ts` handles both; code that assumes an array breaks the
 day the watchlist is trimmed to one.
+
+## My rules
+
+- Keep a change under 100 changed lines. If it needs more, split it and tell me how.
+- When two approaches are both reasonable, show me both in three lines each and wait.
+- Commit messages say why, not what: one line, present tense, never "update".
+- Ask before touching anything in .github, .githooks or scripts.
+- Before any code, say in one sentence what the change does and which files it touches.
+- Read PLAN.md before proposing any change. Anything it does not cover is out of scope: ask before doing it.

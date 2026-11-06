@@ -17,6 +17,8 @@ export type ScreenRow = {
   dividend_yield: number | null;
   sector: string | null;
   currency_symbol: string | null;
+  /** The listing's exchange: the screener's codes come without the suffix. */
+  exchange: string | null;
 };
 
 /** A filter exactly as /screener takes it: field, operator, value. */
@@ -133,6 +135,7 @@ export function toScreenRows(body: unknown): ScreenRow[] {
         sector: typeof r.sector === "string" ? r.sector : null,
         currency_symbol:
           typeof r.currency_symbol === "string" ? r.currency_symbol : null,
+        exchange: typeof r.exchange === "string" ? r.exchange : null,
       },
     ];
   });

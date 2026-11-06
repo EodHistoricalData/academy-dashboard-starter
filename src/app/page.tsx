@@ -1,3 +1,4 @@
+import { Alerts } from "@/components/Alerts";
 import { Freshness } from "@/components/Freshness";
 import { SortedWatchlist } from "@/components/SortedWatchlist";
 import { WallMeter } from "@/components/WallMeter";
@@ -5,6 +6,7 @@ import { hasKey, isMock } from "@/lib/eodhd";
 import type { Failure } from "@/lib/failure";
 import { account, ageMinutes, pageLoadCalls, quotes } from "@/lib/quotes";
 import { isAvailable } from "@/lib/rows";
+import { firedAlerts, RULES } from "@/lib/rules";
 import { WATCHLIST } from "@/lib/watchlist";
 
 // Server-rendered on every request, never prerendered: a page built at deploy time would
@@ -50,6 +52,10 @@ export default async function Home() {
         {/* No wrapping section with a hidden "Watchlist" heading: the h1 above already
             says it and the table carries its own caption, so that made three announcements
             of the same word for anyone listening. */}
+        {rows !== null && rows.length > 0 && (
+          <Alerts fired={firedAlerts(RULES, rows)} ruleCount={RULES.length} />
+        )}
+
         {rows !== null && rows.length > 0 && (
           <SortedWatchlist rows={rows} order={WATCHLIST} />
         )}

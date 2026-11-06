@@ -1,4 +1,5 @@
 import type { Column } from "@/components/DataTable";
+import { asPercent, compact, signedPercent } from "@/lib/format";
 import type { ScreenRow } from "@/lib/screens";
 
 /**
@@ -12,16 +13,15 @@ export const SCREEN_COLUMNS: Column<ScreenRow>[] = [
     key: "adjusted_close",
     label: "Close",
     align: "right",
-    render: (r) => r.adjusted_close.toFixed(2),
+    // One exchange, one currency, but the symbol is on every row: the column says what it
+    // is in, and there is no sort on price to rank a mix of scales.
+    render: (r) => `${r.currency_symbol ?? ""}${r.adjusted_close.toFixed(2)}`,
   },
   {
     key: "refund_1d_p",
     label: "1d",
     align: "right",
-    render: (r) =>
-      r.refund_1d_p === null
-        ? null
-        : `${r.refund_1d_p > 0 ? "+" : r.refund_1d_p < 0 ? "−" : ""}${Math.abs(r.refund_1d_p).toFixed(2)}%`,
+    render: (r) => (r.refund_1d_p === null ? null : signedPercent(r.refund_1d_p)),
     tone: (r) =>
       r.refund_1d_p === null || r.refund_1d_p === 0
         ? null
@@ -33,7 +33,7 @@ export const SCREEN_COLUMNS: Column<ScreenRow>[] = [
     key: "market_capitalization",
     label: "Market cap",
     align: "right",
-    render: (r) => r.market_capitalization.toLocaleString("en-US"),
+    render: (r) => compact(r.market_capitalization),
   },
   {
     key: "earnings_share",
@@ -46,11 +46,8 @@ export const SCREEN_COLUMNS: Column<ScreenRow>[] = [
     key: "dividend_yield",
     label: "Yield",
     align: "right",
-    // dividend_yield is a FRACTION: 0.0002 is 0.02%. This is the only place that knows.
-    render: (r) =>
-      r.dividend_yield === null
-        ? null
-        : `${(r.dividend_yield * 100).toFixed(2)}%`,
+    // dividend_yield is a FRACTION: 0.0002 is 0.02%. asPercent is the only converter.
+    render: (r) => (r.dividend_yield === null ? null : asPercent(r.dividend_yield)),
   },
   { key: "sector", label: "Sector", render: (r) => r.sector },
 ];

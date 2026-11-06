@@ -64,3 +64,18 @@ a choice to you, the section for that unit says which one we made. Yours can dif
 - Your symbols: the full list in reading order, with `005930.KO` as the listing we suspect
   the plan does not cover. In mock mode it is unavailable because `fixtures/real-time.json`
   has no row for it; live, which of yours come back empty depends on your plan.
+
+## Build Your First Tool · unit 4: Make It Real, and Ship It
+
+- How old is this number: nothing to add. The data-age line with its band is the
+  `Freshness` panel the starter ships, computed from the quotes' own timestamps.
+- The wall: four lines in `PLAN.md`. Cost per view and views per day come from the cost
+  table (the page's "Live, it would cost 7 calls"), not from a live meter: this branch runs
+  on fixtures. Measure yours on your own account; the data age especially.
+- Fork and deploy: `scripts/check-network.mjs` is the network-tab check as a script. Our
+  choice: it fetches the page and every same-site script and fails on an EODHD API address
+  or `api_token` in them, rather than driving a headless browser, so the project gains no
+  dependency. Its header says what that cannot see. `tests/check-network.test.ts` tests the
+  matcher. Run it as `node scripts/check-network.mjs https://your-app.example`.
+- What the exam checks: `PLAN.md` marks each line of the definition of done and names the
+  next thing. This copy is not deployed, and says so.

@@ -28,3 +28,14 @@ API has no idempotency key, so a run that dies between the two sends again next 
 
 Last commit: 2026-11-06. GitHub disables a public repository's schedules after 60 days with
 no activity: 2027-01-05. The heartbeat check would say so the evening after.
+
+## Alert: stay, change the question, or upgrade
+
+`npm run alert:cost` for 2 symbols: end of day 2 calls a day, live quotes every 15 minutes
+52, intraday bars every 15 minutes 260, against 20.
+
+- Would I act during the session? No: I act the next morning.
+- Has the alert changed a decision yet? Not yet: it has run for days, not a month.
+- Is the limit speed or breadth? Neither: two symbols once a day use 2 of 20 calls.
+
+Decision: stay on end of day, on the free plan. Ask again after a month of alerts.

@@ -79,3 +79,25 @@ a choice to you, the section for that unit says which one we made. Yours can dif
   matcher. Run it as `node scripts/check-network.mjs https://your-app.example`.
 - What the exam checks: `PLAN.md` marks each line of the definition of done and names the
   next thing. This copy is not deployed, and says so.
+
+## Build a Screener · unit 1: Plan the Rebuild
+
+- `PLAN.md` gains the rebuild section: every file under survives, generalises, new or dies,
+  and the universe decision (common stock; preferred, funds, ETFs, indices out).
+- Our choice for the universe: `/screener` has no instrument-type filter we rely on, so the
+  screen's own `earnings_share > 0` keeps funds and indices out. It also drops loss-makers,
+  and the page says so.
+- First screen: `src/lib/screens.ts` (request, `toScreenRows` reading under `data`,
+  `screenErrors` naming the refused filter by its path) and the page at `/screen`. Our two
+  filters: market cap over $10B and earnings per share above zero, on US exchanges, largest
+  first, 20 rows. Yield is shown as a percentage of the fraction the API sends. The session
+  date is on the page. `tests/screens.test.ts` covers the wrapper, the error envelope and the
+  cost (5 calls).
+- The route is `/screen`, the name the last unit of the course uses; one lesson writes
+  `/screener?f=...` for the same page.
+- The notices both pages need (mock mode, no key, a named failure) moved to
+  `src/components/Notices.tsx`. `WallMeter` takes a `basis`, so the screen does not claim
+  "one per ticker".
+- In mock mode the screener answers from `fixtures/screener.json` whatever the filters; the
+  misspelled-field exercise only shows its message live, or in the test.
+- Market caps are printed in full here. Unit 3's review finds that unreadable and fixes it.

@@ -13,7 +13,7 @@ import {
   type Screen,
   screen,
   screenAsOf,
-  screenCalls,
+  screenPageCalls,
 } from "@/lib/screens";
 
 // A screen runs on the server, on every load, through eodhdFetch: the key never leaves it.
@@ -116,7 +116,7 @@ export default async function ScreenPage({
         <div className="border-t border-zinc-200 pt-8 dark:border-zinc-800 sm:w-1/2">
           <WallMeter
             account={plan}
-            pageCalls={screenCalls(current)}
+            pageCalls={screenPageCalls(current)}
             mock={mock}
             basis="one screener request, however many rows"
           />

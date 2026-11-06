@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
 import { estimateCalls } from "@/lib/cost";
 import { pageLoadCalls, quotesRequest } from "@/lib/quotes";
+import { MY_SCREEN, screenPageCalls } from "@/lib/screens";
 import { WATCHLIST } from "@/lib/watchlist";
 
 describe("estimateCalls", () => {
@@ -48,5 +49,14 @@ describe("the page's own cost", () => {
 
   it("is nothing for an empty watchlist", () => {
     expect(pageLoadCalls([])).toBe(0);
+  });
+});
+
+describe("the screen page's cost", () => {
+  // Measured: one /screener request is 5 calls and reading the plan is free. If this
+  // fails, a change added a fetch to the page: say what it is for before raising the 5.
+  it("is 5 calls, whatever the limit", () => {
+    expect(screenPageCalls(MY_SCREEN)).toBe(5);
+    expect(screenPageCalls({ ...MY_SCREEN, limit: 100 })).toBe(5);
   });
 });

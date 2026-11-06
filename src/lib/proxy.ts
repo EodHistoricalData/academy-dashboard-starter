@@ -1,6 +1,7 @@
 import { estimateCalls } from "@/lib/cost";
-import { eodhdFetch, isMock, redactKey } from "@/lib/eodhd";
+import { eodhdFetch, hasKey, isMock, redactKey } from "@/lib/eodhd";
 import { checkScreenerQuery } from "@/lib/filters";
+import { toScreenRows } from "@/lib/screens";
 
 /**
  * The endpoints the proxy will sign with your key and forward. Everything else is a 404.
@@ -51,6 +52,18 @@ export async function proxy(
 ): Promise<Response> {
   const refusal = refuse(segments);
   if (refusal) return refusal;
+
+  // Said plainly, before anything is sent: "could not reach EODHD" would send you looking
+  // at the network for a variable that is simply not set.
+  if (!isMock() && !hasKey()) {
+    return Response.json(
+      {
+        error:
+          "EODHD_API_KEY is not set on the server. Put it in .env.local (or the host's settings) and restart, or set EODHD_MOCK=1 to work on fixtures.",
+      },
+      { status: 503, headers: { "cache-control": "no-store" } },
+    );
+  }
 
   let params: Record<string, string> = {};
   for (const [key, value] of query.entries()) {
@@ -152,12 +165,27 @@ async function fetchOnce(
   params: Record<string, string>,
 ): Promise<Answer> {
   const upstream = await eodhdFetch(target, params);
+  const body = redactKey(await upstream.text());
   return {
     status: upstream.status,
     contentType: upstream.headers.get("content-type"),
     retryAfter: upstream.headers.get("retry-after"),
-    body: redactKey(await upstream.text()),
+    body: upstream.ok ? answerFor(target, body) : body,
   };
+}
+
+/**
+ * What a successful answer is passed back as. For the screener, only the fields the table
+ * uses: a proxy that reflects upstream bodies unexamined will one day reflect something
+ * private. Error bodies still pass through, because they say what went wrong.
+ */
+function answerFor(target: string, body: string): string {
+  if (target !== "screener") return body;
+  try {
+    return JSON.stringify({ data: toScreenRows(JSON.parse(body)) });
+  } catch {
+    return JSON.stringify({ data: [] });
+  }
 }
 
 /** A 404 with the reason, or null when the path may go upstream. */

@@ -194,6 +194,41 @@ describe("the screener's input", () => {
   });
 });
 
+describe("the screener's answer", () => {
+  it("returns only the fields the table needs, not the upstream body as it came", async () => {
+    upstream(
+      JSON.stringify({
+        data: [
+          {
+            code: "NVDA",
+            name: "NVIDIA Corporation",
+            last_day_data_date: "2026-10-30",
+            adjusted_close: 186.75,
+            market_capitalization: 4551000000000,
+            email: "someone@example.com",
+          },
+        ],
+        account: { email: "someone@example.com" },
+      }),
+      { status: 200, headers: { "content-type": "application/json" } },
+    );
+    const res = await call("screener");
+    expect(res.status).toBe(200);
+    const text = await res.text();
+    expect(text).not.toContain("someone@example.com");
+    expect(JSON.parse(text).data[0]).toMatchObject({ code: "NVDA" });
+  });
+
+  it("says the key is missing, rather than that EODHD could not be reached", async () => {
+    vi.stubEnv("EODHD_API_KEY", "");
+    const fetchMock = upstream("{}");
+    const res = await call("screener");
+    expect(res.status).toBe(503);
+    expect((await res.json()).error).toMatch(/EODHD_API_KEY is not set/);
+    expect(fetchMock).not.toHaveBeenCalled();
+  });
+});
+
 describe("coalescing", () => {
   it("sends identical concurrent requests upstream once", async () => {
     let release!: () => void;

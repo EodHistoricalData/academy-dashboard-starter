@@ -9,7 +9,7 @@ import { isAvailable, type Row as WatchlistRow } from "@/lib/rows";
  */
 export function Watchlist({ rows }: { rows: WatchlistRow[] }) {
   return (
-    <table className="w-full border-collapse text-sm tabular-nums">
+    <table className="w-full border-collapse whitespace-nowrap text-sm tabular-nums">
       <caption className="sr-only">
         Your watchlist: last price and change since the previous close.
       </caption>
@@ -27,7 +27,7 @@ export function Watchlist({ rows }: { rows: WatchlistRow[] }) {
           <th scope="col" className="hidden py-2 text-right sm:table-cell">
             Volume
           </th>
-          <th scope="col" className="w-2/5 py-2 pl-6 text-left">
+          <th scope="col" className="py-2 pl-6 text-left">
             Note
           </th>
         </tr>
@@ -102,8 +102,7 @@ function UnavailableRow({ code }: { code: string }) {
         {code}
       </th>
       <td colSpan={3} className="py-2.5 text-right text-zinc-500 dark:text-zinc-400">
-        Unavailable: no prices for this symbol. Check the ticker, or whether
-        your plan covers its exchange.
+        Unavailable: unknown ticker, or not in your plan
       </td>
       <td className="py-1.5 pl-6">
         <NoteField code={code} />

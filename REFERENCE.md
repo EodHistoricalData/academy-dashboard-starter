@@ -50,7 +50,8 @@ a choice to you, the section for that unit says which one we made. Yours can dif
   `watchlist-sort-v1`. The page stays a server component and passes finished rows down.
 - Notes: `loadNotes` in `src/lib/notes.ts` under `watchlist-notes-v1`, keyed by ticker, and
   `tests/notes.test.ts` feeds it half a write. The editor is `src/components/NoteField.tsx`,
-  one input per row. We kept `tags` in the type but built no tag editor: the lesson asks for
+  one input per row. Below 640px the note column is hidden, like volume: on a phone the
+  table has room for prices only. We kept `tags` in the type but built no tag editor: the lesson asks for
   a note field, and tags earn a place only once you reuse them.
 - `src/lib/stored.ts` is the one place that touches localStorage, through
   `useSyncExternalStore`, so the server render sees nothing saved and nothing flickers into

@@ -9,7 +9,7 @@ import { isAvailable, type Row as WatchlistRow } from "@/lib/rows";
  */
 export function Watchlist({ rows }: { rows: WatchlistRow[] }) {
   return (
-    <table className="w-full border-collapse whitespace-nowrap text-sm tabular-nums">
+    <table className="w-full border-collapse text-sm tabular-nums sm:whitespace-nowrap">
       <caption className="sr-only">
         Your watchlist: last price and change since the previous close.
       </caption>
@@ -27,7 +27,7 @@ export function Watchlist({ rows }: { rows: WatchlistRow[] }) {
           <th scope="col" className="hidden py-2 text-right sm:table-cell">
             Volume
           </th>
-          <th scope="col" className="py-2 pl-6 text-left">
+          <th scope="col" className="hidden py-2 pl-6 text-left sm:table-cell">
             Note
           </th>
         </tr>
@@ -80,7 +80,7 @@ function Row({ quote }: { quote: Quote }) {
       <td className="hidden py-2.5 text-right text-zinc-500 dark:text-zinc-400 sm:table-cell">
         {quote.volume === null ? "—" : quote.volume.toLocaleString("en-US")}
       </td>
-      <td className="py-1.5 pl-6">
+      <td className="hidden py-1.5 pl-6 sm:table-cell">
         <NoteField code={quote.code} />
       </td>
     </tr>
@@ -104,7 +104,7 @@ function UnavailableRow({ code }: { code: string }) {
       <td colSpan={3} className="py-2.5 text-right text-zinc-500 dark:text-zinc-400">
         Unavailable: unknown ticker, or not in your plan
       </td>
-      <td className="py-1.5 pl-6">
+      <td className="hidden py-1.5 pl-6 sm:table-cell">
         <NoteField code={code} />
       </td>
     </tr>

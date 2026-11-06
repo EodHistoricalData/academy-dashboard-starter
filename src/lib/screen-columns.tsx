@@ -1,5 +1,7 @@
 import type { Column } from "@/components/DataTable";
 import { ShortlistCell } from "@/components/Shortlist";
+import { addToWatchlist } from "@/app/watchlist-actions";
+import { toTicker } from "@/lib/added";
 import { asPercent, compact, signedPercent } from "@/lib/format";
 import type { ScreenRow } from "@/lib/screens";
 
@@ -58,3 +60,28 @@ export const SCREEN_COLUMNS: Column<ScreenRow>[] = [
     input: (r) => <ShortlistCell code={r.code} />,
   },
 ];
+
+/**
+ * The join between the two tools: from a result, onto the watchlist. Built per render,
+ * because whether a name is already watched is known only then. It costs nothing here;
+ * the watchlist pays one call per added name on each of its loads.
+ */
+export function watchlistColumn(watching: string[]): Column<ScreenRow> {
+  return {
+    key: "watchlist",
+    label: "",
+    render: () => null,
+    input: (r) => {
+      const ticker = toTicker(r);
+      return watching.includes(ticker) ? (
+        <span className="text-xs text-zinc-500 dark:text-zinc-400">watching</span>
+      ) : (
+        <form action={addToWatchlist.bind(null, ticker)}>
+          <button type="submit" className="text-xs underline underline-offset-2">
+            Add to watchlist
+          </button>
+        </form>
+      );
+    },
+  };
+}

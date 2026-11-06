@@ -6,8 +6,10 @@ import { WallMeter } from "@/components/WallMeter";
 import { hasKey, isMock } from "@/lib/eodhd";
 import { account, ageMinutes, pageLoadCalls, quotes } from "@/lib/quotes";
 import { isAvailable } from "@/lib/rows";
+import { Nav } from "@/components/Nav";
+import { removeFromWatchlist } from "@/app/watchlist-actions";
+import { myTickers } from "@/lib/my-tickers";
 import { firedAlerts, RULES } from "@/lib/rules";
-import { WATCHLIST } from "@/lib/watchlist";
 
 // Server-rendered on every request, never prerendered: a page built at deploy time would
 // show prices from deploy time. The whole point is that these numbers are yours and current.
@@ -15,11 +17,13 @@ export const dynamic = "force-dynamic";
 
 export default async function Home() {
   const mock = isMock();
+  // The file's tickers, plus any added from the screen.
+  const { list, added } = await myTickers();
 
   // Two independent requests, so they go together rather than one waiting on the other.
   // quotes() checks for the key itself and sends nothing without one.
   const [result, plan] = await Promise.all([
-    quotes(WATCHLIST),
+    quotes(list),
     mock || hasKey() ? account() : Promise.resolve(null),
   ]);
   const rows = "rows" in result ? result.rows : null;
@@ -33,7 +37,8 @@ export default async function Home() {
     <div className="min-h-screen bg-zinc-50 px-6 py-10 font-sans text-zinc-900 dark:bg-zinc-950 dark:text-zinc-100 sm:py-14">
       <main className="mx-auto flex w-full max-w-2xl flex-col gap-10">
         <header className="flex flex-col gap-1">
-          <h1 className="text-lg font-semibold tracking-tight">
+          <Nav here="/" />
+          <h1 className="mt-4 text-lg font-semibold tracking-tight">
             Before the open
           </h1>
           <p className="text-sm text-zinc-600 dark:text-zinc-400">
@@ -57,7 +62,22 @@ export default async function Home() {
         )}
 
         {rows !== null && rows.length > 0 && (
-          <SortedWatchlist rows={rows} order={WATCHLIST} />
+          <SortedWatchlist rows={rows} order={list} />
+        )}
+
+        {added.length > 0 && (
+          // Added names cost a call each on every load, so each can be taken off here.
+          <div className="flex flex-wrap items-center gap-x-3 gap-y-1 text-xs text-zinc-600 dark:text-zinc-400">
+            <span>Added from the screen:</span>
+            {added.map((t) => (
+              <form key={t} action={removeFromWatchlist.bind(null, t)}>
+                <span className="text-zinc-900 dark:text-zinc-100">{t}</span>{" "}
+                <button type="submit" className="underline underline-offset-2">
+                  remove
+                </button>
+              </form>
+            ))}
+          </div>
         )}
 
         {rows !== null && rows.length === 0 && (
@@ -78,7 +98,7 @@ export default async function Home() {
             )}
             <WallMeter
               account={plan}
-              pageCalls={pageLoadCalls(WATCHLIST)}
+              pageCalls={pageLoadCalls(list)}
               mock={mock}
             />
           </div>

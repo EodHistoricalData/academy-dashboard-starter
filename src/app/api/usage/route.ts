@@ -1,6 +1,6 @@
 import { eodhdFetch, isMock } from "@/lib/eodhd";
+import { myTickers } from "@/lib/my-tickers";
 import { pageLoadCalls } from "@/lib/quotes";
-import { WATCHLIST } from "@/lib/watchlist";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -32,7 +32,7 @@ export async function GET() {
       dailyLimit: limit,
       remaining: used !== null && limit !== null ? Math.max(0, limit - used) : null,
       // What one load of the home page spends, so "remaining" can be read as page loads.
-      pageLoadCalls: pageLoadCalls(WATCHLIST),
+      pageLoadCalls: pageLoadCalls((await myTickers()).list),
       // True when answers come from fixtures/ and nothing above is your real account.
       mock: isMock(),
     });

@@ -1,4 +1,5 @@
 import { DataTable } from "@/components/DataTable";
+import { Nav } from "@/components/Nav";
 import { Code, CallFailed, MockMode, NoKey } from "@/components/Notices";
 import { SavedScreens } from "@/components/SavedScreens";
 import { ShortlistPanel } from "@/components/Shortlist";
@@ -6,7 +7,8 @@ import { ScreenForm } from "@/components/ScreenForm";
 import { WallMeter } from "@/components/WallMeter";
 import { hasKey, isMock } from "@/lib/eodhd";
 import { account } from "@/lib/quotes";
-import { SCREEN_COLUMNS } from "@/lib/screen-columns";
+import { myTickers } from "@/lib/my-tickers";
+import { SCREEN_COLUMNS, watchlistColumn } from "@/lib/screen-columns";
 import { DEFAULT_SORT, parseFilterParam, safeSort, toTriples } from "@/lib/filters";
 import {
   MY_FILTERS,
@@ -38,6 +40,7 @@ export default async function ScreenPage({
   const current: Screen = { filters: toTriples(filters), sort, limit: PAGE_LIMIT };
 
   const mock = isMock();
+  const { list: watching } = await myTickers();
   const [result, plan] = await Promise.all([
     screen(current),
     mock || hasKey() ? account() : Promise.resolve(null),
@@ -49,7 +52,8 @@ export default async function ScreenPage({
     <div className="min-h-screen bg-zinc-50 px-6 py-10 font-sans text-zinc-900 dark:bg-zinc-950 dark:text-zinc-100 sm:py-14">
       <main className="mx-auto flex w-full max-w-4xl flex-col gap-10">
         <header className="flex flex-col gap-1">
-          <h1 className="text-lg font-semibold tracking-tight">Screen</h1>
+          <Nav here="/screen" />
+          <h1 className="mt-4 text-lg font-semibold tracking-tight">Screen</h1>
           <p className="text-sm text-zinc-600 dark:text-zinc-400">
             US exchanges, top {PAGE_LIMIT} by {sort}. These match the filters;
             that is all they are.
@@ -108,7 +112,7 @@ export default async function ScreenPage({
               </p>
             )}
             <DataTable
-              columns={SCREEN_COLUMNS}
+              columns={[...SCREEN_COLUMNS, watchlistColumn(watching)]}
               rows={rows}
               rowKey={(r) => r.code}
               caption="Companies matching the screen, largest first."

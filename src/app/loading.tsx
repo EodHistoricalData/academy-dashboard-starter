@@ -1,3 +1,5 @@
+import { Nav } from "@/components/Nav";
+
 /**
  * Shown while the page waits on the API.
  *
@@ -21,7 +23,8 @@ export default function Loading() {
         aria-busy="true"
       >
         <header className="flex flex-col gap-1">
-          <h1 className="text-lg font-semibold tracking-tight text-zinc-900 dark:text-zinc-100">
+          <Nav here="/" />
+          <h1 className="mt-4 text-lg font-semibold tracking-tight text-zinc-900 dark:text-zinc-100">
             Before the open
           </h1>
           <p className="text-sm text-zinc-600 dark:text-zinc-400">

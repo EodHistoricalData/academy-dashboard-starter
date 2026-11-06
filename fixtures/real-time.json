@@ -76,5 +76,31 @@
     "previousClose": 73.98,
     "change": 0.64,
     "change_p": 0.8651
+  },
+  {
+    "code": "GOOGL.US",
+    "timestamp": 1793390400,
+    "gmtoffset": 0,
+    "open": 247.3,
+    "high": 249.62,
+    "low": 246.15,
+    "close": 248.1,
+    "volume": 31220410,
+    "previousClose": 247.08,
+    "change": 1.02,
+    "change_p": 0.4128
+  },
+  {
+    "code": "AMZN.US",
+    "timestamp": 1793390400,
+    "gmtoffset": 0,
+    "open": 226.4,
+    "high": 227.1,
+    "low": 223.58,
+    "close": 224.85,
+    "volume": 40115230,
+    "previousClose": 226.94,
+    "change": -2.09,
+    "change_p": -0.9209
   }
 ]

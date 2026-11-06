@@ -195,3 +195,40 @@ Regimes NOT tested:  2008, 2020, 2022, and every rate cycle before this window
 
 The "everything against 2015-onward" comparison cannot be run here: all of it is after
 2015. The drawdown and time under water above describe this year, not the rule.
+
+## Course 4: one cockpit for the three tools
+
+### State
+
+Where each piece lives today, and where it belongs once the three share one page.
+
+- Sort order of the watchlist (localStorage `watchlist-sort-v1`): panel-local. Only the
+  watchlist reads it, and nothing breaks if another device sorts differently.
+- Collapsed or expanded panels: panel-local. Nobody else cares.
+- Saved screens (localStorage `screens-v1`): persisted. They are criteria I come back to;
+  lesson 2 moves them to the server.
+- Shortlist (localStorage `shortlist-v1`): persisted, for the same reason.
+- Notes per ticker (localStorage `watchlist-notes-v1`): persisted. Personal, and wanted on
+  every device.
+- Watchlist tickers (`src/lib/watchlist.ts` and the `watchlist-added-v1` cookie):
+  persisted. Two homes for one list, from course 2; the cockpit reads both.
+- Threshold rules (`src/lib/rules.ts`): persisted. Unit 3 makes them documents.
+- Backtest parameters (the address on `/backtest`) and the run log (`.cache/runs.jsonl`):
+  persisted, on disk; the parameters become a panel's config.
+- Screen filters (the address on `/screen`): shared once a screen is a panel, persisted when
+  saved.
+- Selected instrument: shared. Does not exist yet: three tools, three meanings of "selected".
+- Quotes and their age: shared. Fetched per page today; one owner from lesson 3.
+
+### Rebuild
+
+- **Survives**: the proxy and its allowlist, `src/lib/market.ts`, `src/lib/failure.ts`,
+  the cost table, the key scan and the hooks, the screener's filter checks, the backtest
+  engine and its honesty tests.
+- **Generalises**: `DataTable`, which gets a third caller; the storage rules (version the
+  key, guard the parse, key by name) become one versioned document per key on the server.
+- **New**: a document store with a version per document, sign-in for the one owner, one
+  market store that owns fetching, a layout document, panels, an alert evaluator.
+- **Dies**: three page shells each fetching for itself, and any code that assumed a tool
+  owned the whole screen. The three pages stay as they are for now; the cockpit is built
+  beside them at `/dashboard`.

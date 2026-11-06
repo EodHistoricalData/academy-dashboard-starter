@@ -317,3 +317,32 @@ a choice to you, the section for that unit says which one we made. Yours can dif
   its own kind, with EODHD's plain-text reason), `src/components/PanelBoundary.tsx`.
   Refreshing keeps the rows with a marker; a failure keeps them, labelled stale; a 402
   offers no retry. A Refresh button asks again even inside the cache's age.
+
+## Build a Dashboard · unit 3: Alerts, and Reviewing the Whole
+
+- Rules as documents: `src/lib/rules.ts` keeps the field name `ticker` from course 1, adds
+  `id`, `enabled`, `lastFiredAt`, `lastValue`, closed lists of fields and operators,
+  `parseRules` (drops, never repairs), a pure `evaluate` and `ruleSentence`. The rules are a
+  `rules` document in the store, seeded from `RULES` (`src/lib/user-rules.ts`); the home
+  page's alert line reads the same document. The course-1 rule tests were rewritten for the
+  new shape and keep their cases.
+- `src/lib/check-all.ts`: `checkAll(rules, fetchQuotes, now)`, no clock and no fetch inside.
+  The dashboard checks after every quotes answer while it is open and says so; the rules'
+  symbols join the union, so a check costs nothing extra. `PLAN.md` prices a server doing
+  it: 78 calls a day at five minutes, 390 at one minute, against 20.
+- Flap control: `cooldownMin`, `rearm`, `armed` and `heldLastCheck` on every rule; with the
+  guards on, a crossing rule is its level and hysteresis makes it fire once per crossing.
+  `evaluate` takes `{ at, guards }`; without guards it is the plain comparison of the first
+  lesson, so its tests stand unchanged. Firings are keyed by rule and observation time and
+  a key already seen does not fire; `digest` makes one message of a check's firings.
+  `tests/flapping.test.ts`: 8 firings with the guards off, 1 with them on, 0 on a replay.
+  Each rule on the dashboard shows the value it last saw and its distance from the
+  threshold.
+- The review: our own pass in `REVIEW.md`, then a second reader that did not build the
+  cockpit wrote `notes/review-cockpit.md`; `REVIEW.md` sorts its findings. Real ones, each a
+  failing test commit then a fix commit: the cross-user 404 for layouts and rules
+  (`tests/store-scope.test.ts`, which passed as written), collapsing panels (it did not
+  exist; a collapsed panel now asks for nothing, `tests/collapse.test.ts`), a store that
+  cannot be read (pages answered 500; now `readDoc` and a notice,
+  `tests/store-down.test.ts`), and rule tickers checked against the ticker shape. The rest
+  are listed with where they will be handled.

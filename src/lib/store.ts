@@ -124,3 +124,34 @@ export function putDoc(
 ): PutResult {
   return store().putDoc(user, key, payload, version);
 }
+
+/**
+ * A read that cannot take the page down. The store being unreachable (a locked file, a
+ * read-only disk) is not the cockpit being unreachable: the page draws from defaults and
+ * says what failed, instead of answering 500 before anything is on screen.
+ */
+export function readDocFrom(
+  from: Store,
+  user: number,
+  key: DocKey,
+): { doc: StoredDoc | null; error: string | null } {
+  try {
+    return { doc: from.getDoc(user, key), error: null };
+  } catch (e) {
+    return { doc: null, error: `The store could not be read (${messageOf(e)}).` };
+  }
+}
+
+export function readDoc(user: number, key: DocKey): { doc: StoredDoc | null; error: string | null } {
+  try {
+    return readDocFrom(store(), user, key);
+  } catch (e) {
+    // Opening the file is the first thing that can fail.
+    return { doc: null, error: `The store could not be read (${messageOf(e)}).` };
+  }
+}
+
+export function messageOf(e: unknown): string {
+  return e instanceof Error ? e.message : String(e);
+}
+

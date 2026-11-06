@@ -1,4 +1,4 @@
-import { getDoc, isDocKey, putDoc } from "@/lib/store";
+import { isDocKey, messageOf, putDoc, readDoc } from "@/lib/store";
 import { currentUser } from "@/lib/user";
 
 export const runtime = "nodejs";
@@ -19,7 +19,11 @@ export async function GET(_req: Request, { params }: Context) {
   const user = await currentUser();
   if (!user) return signIn();
   const { key } = await params;
-  const doc = isDocKey(key) ? getDoc(user.id, key) : null;
+  if (!isDocKey(key)) {
+    return Response.json({ error: "No such document." }, { status: 404, headers: NO_STORE });
+  }
+  const { doc, error } = readDoc(user.id, key);
+  if (error) return Response.json({ error }, { status: 503, headers: NO_STORE });
   if (!doc) return Response.json({ error: "No such document." }, { status: 404, headers: NO_STORE });
   return Response.json(doc, { headers: NO_STORE });
 }
@@ -53,7 +57,15 @@ export async function PUT(req: Request, { params }: Context) {
     );
   }
 
-  const result = putDoc(user.id, key, body.payload, body.version as number);
+  let result: ReturnType<typeof putDoc>;
+  try {
+    result = putDoc(user.id, key, body.payload, body.version as number);
+  } catch (e) {
+    return Response.json(
+      { error: `The store could not save this document (${messageOf(e)}). Your change is in this page only.` },
+      { status: 503, headers: NO_STORE },
+    );
+  }
   if (result.conflict) {
     return Response.json(
       {

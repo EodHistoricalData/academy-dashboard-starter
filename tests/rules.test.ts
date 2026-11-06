@@ -91,6 +91,15 @@ describe("parseRules", () => {
     expect(parseRules(stored).map((r) => r.id)).toEqual([downThree.id]);
     expect(parseRules("not a list")).toEqual([]);
   });
+
+  it("drops a rule whose ticker is not shaped like a ticker: it goes into a request path", () => {
+    const stored = [
+      { ...downThree, id: "q", ticker: "AAPL.US?filter=last_close" },
+      { ...downThree, id: "p", ticker: "../user" },
+      { ...downThree, id: "ok", ticker: "BRK-B.US" },
+    ];
+    expect(parseRules(stored).map((r) => r.id)).toEqual(["ok"]);
+  });
 });
 
 describe("ruleSentence", () => {

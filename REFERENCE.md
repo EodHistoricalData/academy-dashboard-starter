@@ -125,3 +125,20 @@ a choice to you, the section for that unit says which one we made. Yours can dif
   only, and `src/components/SavedScreens.tsx`. A saved screen reopens as its address.
 - In mock mode the fixture does not screen: any filters or sort show the same twenty rows.
   What the filters do is in the tests.
+
+## Build a Screener · unit 3: Code Review as a Process
+
+- `REVIEW.md`: the four lenses in our words, a screener example under each, how to write a
+  finding, the findings this unit made and the test each became, and the prompt for a
+  reviewer who did not write the change.
+- Leaks: the proxy now returns only the table's fields for a successful `/screener` answer
+  (error bodies still pass through, because they say what went wrong), and says
+  "EODHD_API_KEY is not set" with a 503 before sending anything. `api_token=fake` and
+  `limit=99999` were already covered by unit 2's tests.
+- Cost: `screenPageCalls` and a test that pins the screen page at 5 calls.
+- Lies: `src/lib/format.ts` (`asPercent`, `signedPercent`, `compact`, `cell`) and
+  `tests/format.test.ts` with the lesson's literals. Market cap reads 4.55T; the close
+  carries its currency symbol on every row, and no sort is offered on price.
+- A reviewer who did not write it is a process (branch, pull request, fresh session, CI as
+  the gate); nothing in the code changes for it. A reference branch has no pull request of
+  its own, so the review prompt lives in `REVIEW.md`.

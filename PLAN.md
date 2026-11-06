@@ -8,3 +8,8 @@
 ## Alert schedule
 
 17:30 in New York on weekdays: 21:30 UTC in summer (EDT), 22:30 UTC in winter (EST).
+
+## Alert delivery
+
+Telegram: a rare duplicate is accepted, a missed alert is not. Send, then record; the Bot
+API has no idempotency key, so a run that dies between the two sends again next time.

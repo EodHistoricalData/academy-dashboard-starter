@@ -101,3 +101,18 @@ is preferred stock: I screen on earnings per share, which a preferred share does
 The screener has no instrument-type filter I can rely on, so the screen itself keeps the
 others out: `earnings_share > 0` drops anything that reports no earnings (funds, indices),
 and it also drops loss-making companies, which I accept and say on the page.
+
+### The breadth wall, in my numbers
+
+```
+Cost per screen attempt:    5 calls (one /screener request; the meter is free)
+Attempts in a real session: 20
+Sessions my allowance buys: 1 per week (20 calls a day, 140 a week; a session is 100)
+Instruments I can see:      18,012 common stocks of 51,215 US instruments, one exchange
+What I cannot screen:       anything outside US exchanges, and a morning of exploring
+```
+
+The first half of the wall throttles thinking: four attempts spend a free day. The second
+half no number of calls fixes: London and Frankfurt are not in this screen at all, and the
+answer does not say so. The counts are from the course's own count of
+`/exchange-symbol-list/US`; this copy runs on fixtures and did not count.

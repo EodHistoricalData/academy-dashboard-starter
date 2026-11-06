@@ -18,7 +18,15 @@ function synthetic(adj: number[]): Bar[] {
 // Falls, then rises, then falls: with fast 2 / slow 3 the signal turns on and off once.
 const prices = [10, 9, 8, 7, 8, 9, 10, 11, 12, 11, 10, 9, 8];
 const bars = synthetic(prices);
-const params = { fast: 2, slow: 3, costBps: 0 };
+// Filled at the signal bar's close, without slippage: unit 2's model, which these
+// hand-worked numbers were written against. The next-open tests are further down.
+const params = {
+  fast: 2,
+  slow: 3,
+  costBps: 0,
+  slippageBps: 0,
+  fill: "signal-close" as const,
+};
 
 describe("positions", () => {
   it("change on the bar after the signal, never on the signal bar", () => {
@@ -83,7 +91,13 @@ describe("the comparison", () => {
     expect(run.timeInMarket).toBeLessThan(1);
   });
 
-  it("uses the textbook defaults, stated before any result", () => {
-    expect(DEFAULTS).toEqual({ fast: 20, slow: 50, costBps: 10 });
+  it("uses the defaults stated before any result: next open, against you", () => {
+    expect(DEFAULTS).toEqual({
+      fast: 20,
+      slow: 50,
+      costBps: 10,
+      slippageBps: 5,
+      fill: "next-open",
+    });
   });
 });

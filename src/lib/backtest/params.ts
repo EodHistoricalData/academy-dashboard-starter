@@ -1,5 +1,7 @@
 import { DEFAULTS, type Params } from "@/lib/backtest/engine";
 
+type NumericKey = "fast" | "slow" | "costBps" | "slippageBps";
+
 /**
  * Parameters from the address bar, each checked against a range and dropped to its
  * default when it fails. These values never reach the API (the history is one request
@@ -7,7 +9,7 @@ import { DEFAULTS, type Params } from "@/lib/backtest/engine";
  * shorter than the slow, is a run that means nothing.
  */
 export function paramsFrom(query: Record<string, string | string[] | undefined>): Params {
-  const int = (key: keyof Params, min: number, max: number) => {
+  const int = (key: NumericKey, min: number, max: number) => {
     const raw = query[key];
     const v = typeof raw === "string" && /^\d+$/.test(raw) ? Number(raw) : NaN;
     return v >= min && v <= max ? v : DEFAULTS[key];
@@ -15,7 +17,11 @@ export function paramsFrom(query: Record<string, string | string[] | undefined>)
   const fast = int("fast", 2, 100);
   const slow = int("slow", 3, 200);
   const costBps = int("costBps", 0, 100);
-  return fast < slow ? { fast, slow, costBps } : { ...DEFAULTS, costBps };
+  const slippageBps = int("slippageBps", 0, 100);
+  const fill = query.fill === "signal-close" ? "signal-close" : DEFAULTS.fill;
+  return fast < slow
+    ? { fast, slow, costBps, slippageBps, fill }
+    : { ...DEFAULTS, costBps, slippageBps, fill };
 }
 
 /** The chosen parameters and their neighbours: fast ±2, slow ±5. */

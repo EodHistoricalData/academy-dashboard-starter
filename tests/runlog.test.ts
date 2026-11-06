@@ -10,7 +10,7 @@ describe("the run log", () => {
     const run = (fast: number) => ({
       at: "2026-11-06T09:00:00.000Z",
       symbol: "SPY.US",
-      params: { fast, slow: 50, costBps: 10 },
+      params: { fast, slow: 50, costBps: 10, slippageBps: 5, fill: "next-open" as const },
       netReturn: 0.05,
       trades: 3,
     });

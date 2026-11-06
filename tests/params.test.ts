@@ -4,11 +4,10 @@ import { neighbours, paramsFrom } from "@/lib/backtest/params";
 
 describe("parameters from the address", () => {
   it("reads each in range and falls back to its default otherwise", () => {
-    expect(paramsFrom({ fast: "10", slow: "30", costBps: "25" })).toEqual({
-      fast: 10,
-      slow: 30,
-      costBps: 25,
-    });
+    expect(
+      paramsFrom({ fast: "10", slow: "30", costBps: "25", slippageBps: "2", fill: "signal-close" }),
+    ).toEqual({ fast: 10, slow: 30, costBps: 25, slippageBps: 2, fill: "signal-close" });
+    expect(paramsFrom({ fill: "best-price-in-bar" }).fill).toBe("next-open");
     expect(paramsFrom({ fast: "1e3", slow: "-5", costBps: "abc" })).toEqual(DEFAULTS);
   });
 

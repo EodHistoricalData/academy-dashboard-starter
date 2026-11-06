@@ -151,3 +151,16 @@ window and costs: +23.72%.
 
 This number stays. Anything found later by changing the parameters is compared with it,
 not written over it, and the run log in `.cache/runs.jsonl` counts the attempts.
+
+### Unit 3: the defaults again, with the honest fill
+
+Same rule, filled at the next open with 5 bps of slippage on top of the 10 bps cost: **net
++4.67%**, against +4.64% at the signal close. On this year the overnight gaps happened to
+go the rule's way; the point is that it is a different number for a stated reason, not a
+better one. The median gap on the fill bars is 17 bps, larger than the 10 bps of cost.
+Costs and slippage took 17% of the gross gain; at 25 bps a trade the result is still
+positive.
+
+Universe: SPY.US alone. The course counted 18,012 live US common stocks against 32,854
+delisted (2026-08-25); a stock-picking version of this rule would have to include the dead
+and say so. A single index fund has them inside it instead.

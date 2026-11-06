@@ -30,6 +30,20 @@ read about before the market opens.
 - A note per ticker: why I am watching it. Kept in this browser, never in git.
 - One threshold rule, checked when the page loads and said to be checked only then.
 
+## The wall, in my numbers
+
+```
+Cost per view:            7 calls (one per ticker; reading the meter is free)
+Views my allowance buys:  2 per day (20 calls / 7, rounded down)
+My data age:              7 days on the fixtures; live, measure it in market hours,
+                          an hour after the close and on a weekend
+What I cannot build:      a page I can leave open that keeps itself current
+```
+
+My routine is about 15 views a day: 105 calls, five times the free allowance. A page that
+refreshes once a minute through a 6.5-hour session is 390 views, 2,730 calls. And the MSFT
+rule fires as late as the data is old, whatever I spend.
+
 ## Done
 
 Deployed at a URL, showing my tickers with live-ish prices and change, readable on my

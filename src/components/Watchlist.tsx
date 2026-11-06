@@ -7,7 +7,8 @@ import { isAvailable, type Row } from "@/lib/rows";
  * this the watchlist is here: last price, the move since the previous close with its sign,
  * volume, and my note.
  */
-const COLUMNS: Column<Row>[] = [
+/** The watchlist's data columns: what any surface showing these rows can use. */
+export const PRICE_COLUMNS: Column<Row>[] = [
   { key: "code", label: "Ticker", render: (r) => r.code },
   {
     key: "close",
@@ -37,6 +38,10 @@ const COLUMNS: Column<Row>[] = [
         ? r.volume.toLocaleString("en-US")
         : null,
   },
+];
+
+const COLUMNS: Column<Row>[] = [
+  ...PRICE_COLUMNS,
   {
     key: "note",
     label: "Note",

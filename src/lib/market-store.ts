@@ -73,3 +73,37 @@ export function oldestTimestamp(rows: Row[]): number | null {
   const times = rows.filter(isAvailable).map((r) => r.timestamp);
   return times.length > 0 ? Math.min(...times) : null;
 }
+
+/**
+ * The same three jobs for requests that are not a list of symbols — a screen, a daily
+ * history — keyed by what they ask: one request per key at a time, an age on the answer,
+ * and the answer served again while younger than maxAge.
+ */
+export function createRequestCache<T>(
+  fetcher: (key: string) => Promise<T>,
+  now: () => number,
+  maxAgeMs: number,
+) {
+  const cache = new Map<string, { value: T; fetchedAt: number }>();
+  const inFlight = new Map<string, Promise<{ value: T; fetchedAt: number }>>();
+
+  return {
+    get(key: string): Promise<{ value: T; fetchedAt: number }> {
+      const hit = cache.get(key);
+      if (hit && now() - hit.fetchedAt < maxAgeMs) return Promise.resolve(hit);
+      let pending = inFlight.get(key);
+      if (!pending) {
+        pending = fetcher(key)
+          .then((value) => {
+            const entry = { value, fetchedAt: now() };
+            cache.set(key, entry);
+            return entry;
+          })
+          .finally(() => inFlight.delete(key));
+        inFlight.set(key, pending);
+      }
+      return pending;
+    },
+  };
+}
+

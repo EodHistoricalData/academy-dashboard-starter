@@ -53,13 +53,15 @@ export const SCREEN_COLUMNS: Column<ScreenRow>[] = [
     render: (r) => (r.dividend_yield === null ? null : asPercent(r.dividend_yield)),
   },
   { key: "sector", label: "Sector", render: (r) => r.sector },
-  {
-    key: "shortlist",
-    label: "",
-    render: () => null,
-    input: (r) => <ShortlistCell code={r.code} />,
-  },
 ];
+
+/** Promote a row to the shortlist; needs a ShortlistProvider above the table. */
+export const shortlistColumn: Column<ScreenRow> = {
+  key: "shortlist",
+  label: "",
+  render: () => null,
+  input: (r) => <ShortlistCell code={r.code} />,
+};
 
 /**
  * The join between the two tools: from a result, onto the watchlist. Built per render,

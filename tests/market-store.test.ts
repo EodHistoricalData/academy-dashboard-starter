@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { createMarketStore, oldestTimestamp } from "@/lib/market-store";
+import { createMarketStore, createRequestCache, oldestTimestamp } from "@/lib/market-store";
 import type { Row } from "@/lib/rows";
 
 const quote = (code: string, timestamp = 1793390400): Row => ({
@@ -80,3 +80,25 @@ describe("oldestTimestamp", () => {
     expect(oldestTimestamp([])).toBeNull();
   });
 });
+
+describe("the request cache", () => {
+  it("asks once for a key, shares the request in flight, and keeps the answer for maxAge", async () => {
+    let calls = 0;
+    let now = 0;
+    const cache = createRequestCache(async (key) => {
+      calls++;
+      return key.toUpperCase();
+    }, () => now, 60_000);
+    const [a, b] = await Promise.all([cache.get("screen"), cache.get("screen")]);
+    expect(calls).toBe(1);
+    expect(a).toEqual({ value: "SCREEN", fetchedAt: 0 });
+    expect(b).toBe(a);
+    now = 30_000;
+    await cache.get("screen");
+    expect(calls).toBe(1);
+    now = 60_000;
+    await cache.get("screen");
+    expect(calls).toBe(2);
+  });
+});
+

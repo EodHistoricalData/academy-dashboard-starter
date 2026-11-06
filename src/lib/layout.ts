@@ -67,7 +67,7 @@ export const DEFAULT_LAYOUT: Layout = {
 
 const MAX_SYMBOLS = 30;
 
-function parseWatchlistConfig(raw: unknown): WatchlistConfig | null {
+export function parseWatchlistConfig(raw: unknown): WatchlistConfig | null {
   const c = raw as { symbols?: unknown } | null;
   return Array.isArray(c?.symbols) &&
     c.symbols.length <= MAX_SYMBOLS &&
@@ -76,7 +76,7 @@ function parseWatchlistConfig(raw: unknown): WatchlistConfig | null {
     : null;
 }
 
-function parseScreenConfig(raw: unknown): ScreenConfig | null {
+export function parseScreenConfig(raw: unknown): ScreenConfig | null {
   const c = raw as { filters?: unknown; sort?: unknown } | null;
   if (!Array.isArray(c?.filters)) return null;
   const filters = c.filters.map(safe); // the course 2 allowlist
@@ -86,7 +86,7 @@ function parseScreenConfig(raw: unknown): ScreenConfig | null {
     : null;
 }
 
-function parseBacktestConfig(raw: unknown): BacktestConfig | null {
+export function parseBacktestConfig(raw: unknown): BacktestConfig | null {
   const c = raw as Record<string, unknown> | null;
   if (!c || !isTicker(c.symbol)) return null;
   const int = (v: unknown, min: number, max: number) =>
@@ -111,7 +111,7 @@ function parseBacktestConfig(raw: unknown): BacktestConfig | null {
   };
 }
 
-function parseQuoteConfig(raw: unknown): QuoteConfig | null {
+export function parseQuoteConfig(raw: unknown): QuoteConfig | null {
   const c = raw as { symbol?: unknown } | null;
   return isTicker(c?.symbol) ? { symbol: c.symbol } : null;
 }

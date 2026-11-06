@@ -2,7 +2,10 @@ import { estimateCalls } from "@/lib/cost";
 import { eodhdFetch } from "@/lib/eodhd";
 import type { Failure } from "@/lib/failure";
 import { marketGet } from "@/lib/market";
+import { quotesRequest } from "@/lib/quote-request";
 import { isAvailable, type Row, toRows } from "@/lib/rows";
+
+export { quotesRequest } from "@/lib/quote-request";
 
 /** One row of the watchlist, as the API gives it. */
 export type Quote = {
@@ -23,20 +26,6 @@ export type Account = {
   used: number | null;
   dailyLimit: number | null;
 };
-
-/**
- * The one request that fetches the whole watchlist: the first ticker in the path, the
- * rest in `s`. Null for an empty list, which needs no request at all.
- */
-export function quotesRequest(
-  tickers: string[],
-): { path: string; params: Record<string, string> } | null {
-  if (tickers.length === 0) return null;
-  const [first, ...rest] = tickers;
-  const params: Record<string, string> = {};
-  if (rest.length > 0) params.s = rest.join(",");
-  return { path: `real-time/${first}`, params };
-}
 
 /**
  * What one load of the page spends, in API calls: one per ticker for the quotes, nothing

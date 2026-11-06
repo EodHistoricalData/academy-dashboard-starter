@@ -22,7 +22,7 @@ export default function Loading() {
       >
         <header className="flex flex-col gap-1">
           <h1 className="text-lg font-semibold tracking-tight text-zinc-900 dark:text-zinc-100">
-            Watchlist
+            Before the open
           </h1>
           <p className="text-sm text-zinc-600 dark:text-zinc-400">
             Loading your tickers.

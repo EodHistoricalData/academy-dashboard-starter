@@ -26,7 +26,9 @@ export default async function Home() {
     <div className="min-h-screen bg-zinc-50 px-6 py-10 font-sans text-zinc-900 dark:bg-zinc-950 dark:text-zinc-100 sm:py-14">
       <main className="mx-auto flex w-full max-w-2xl flex-col gap-10">
         <header className="flex flex-col gap-1">
-          <h1 className="text-lg font-semibold tracking-tight">Watchlist</h1>
+          <h1 className="text-lg font-semibold tracking-tight">
+            Before the open
+          </h1>
           <p className="text-sm text-zinc-600 dark:text-zinc-400">
             Your tickers, your key, fetched on the server.
           </p>

@@ -29,7 +29,7 @@ import {
 } from "@/lib/market-store";
 import type { Notes } from "@/lib/notes";
 import { panelState } from "@/lib/panel-state";
-import { type Needs, type PanelData, type PanelDef, unionNeeds } from "@/lib/panels";
+import { type Needs, neededBy, type PanelData, type PanelDef, unionNeeds } from "@/lib/panels";
 import { type Checked, checkAll, digest, nextRules } from "@/lib/check-all";
 import { isAvailable } from "@/lib/rows";
 import { type Rule, ruleSentence } from "@/lib/rules";
@@ -150,6 +150,7 @@ export function Cockpit({
     setSelection((current) => nextSelection(current, symbol, source));
   }, []);
 
+  // A collapsed panel needs nothing; see neededBy in src/lib/panels.ts.
   const needsByPanel = useMemo(
     () =>
       layout.panels.map((p) => {
@@ -158,16 +159,20 @@ export function Cockpit({
       }),
     [layout, selection],
   );
+  const openNeeds = useMemo(
+    () => neededBy(layout.panels, (p) => needsByPanel[layout.panels.indexOf(p)]),
+    [layout, needsByPanel],
+  );
 
   // Every symbol on the page: the only ones the address may select.
   const showing = useMemo(
     () => [
       ...new Set([
-        ...unionNeeds(needsByPanel.flatMap((n) => (n ? [n] : []))),
+        ...unionNeeds(openNeeds),
         ...[...loaded.screens.values()].flatMap((s) => s.value.map(toTicker)),
       ]),
     ],
-    [needsByPanel, loaded],
+    [openNeeds, loaded],
   );
 
   // The selection goes into the address, so a view can be shared and survives a reload.
@@ -276,11 +281,9 @@ export function Cockpit({
 
   useEffect(() => {
     // Started after this render, so the effect itself sets no state.
-    const started = Promise.resolve().then(() =>
-      fetchFor(needsByPanel.flatMap((n) => (n ? [n] : [])), false),
-    );
+    const started = Promise.resolve().then(() => fetchFor(openNeeds, false));
     void started;
-  }, [needsByPanel, fetchFor]);
+  }, [openNeeds, fetchFor]);
 
   // Autosave: every change to a layout writes the whole document with the version read.
   // Writes go out one at a time; another tab's newer version is shown, not overwritten.
@@ -324,6 +327,16 @@ export function Cockpit({
       [layout.name]: {
         ...layout,
         panels: layout.panels.map((p) => (p.id === panelId ? { ...p, title } : p)),
+      },
+    });
+  }
+
+  function setCollapsed(panelId: string, collapsed: boolean) {
+    saveLayouts({
+      ...layouts,
+      [layout.name]: {
+        ...layout,
+        panels: layout.panels.map((p) => (p.id === panelId ? { ...p, collapsed } : p)),
       },
     });
   }
@@ -382,7 +395,7 @@ export function Cockpit({
         </div>
         <button
           type="button"
-          onClick={() => void fetchFor(needsByPanel.flatMap((n) => (n ? [n] : [])), true)}
+          onClick={() => void fetchFor(openNeeds, true)}
           className="rounded border border-zinc-300 px-2.5 py-1 text-sm dark:border-zinc-700"
         >
           Refresh
@@ -394,8 +407,16 @@ export function Cockpit({
           const def = defOf(panel);
           const needs = needsByPanel[i];
           const onRename = (title: string) => rename(panel.id, title);
-          if (!def || !needs) {
-            return <PanelFrame key={panel.id} panel={panel} onRename={onRename} />;
+          const onCollapse = () => setCollapsed(panel.id, !panel.collapsed);
+          if (!def || !needs || panel.collapsed) {
+            return (
+              <PanelFrame
+                key={panel.id}
+                panel={panel}
+                onRename={onRename}
+                onCollapse={onCollapse}
+              />
+            );
           }
           const keys = keysOf(needs);
           const data = dataFor(needs);
@@ -418,6 +439,7 @@ export function Cockpit({
               key={panel.id}
               panel={panel}
               onRename={onRename}
+              onCollapse={onCollapse}
               aside={asideFor(state.kind, needs, data)}
             >
               <PanelBoundary>

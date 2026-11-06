@@ -44,6 +44,21 @@ export type PanelDef<C> = {
   Component(props: PanelProps<C>): ReactNode;
 };
 
+/**
+ * The needs of the panels that are open. A collapsed panel shows only its title, so it
+ * asks for nothing: a panel nobody can see must not cost a call.
+ */
+export function neededBy<P extends { collapsed: boolean }>(
+  panels: P[],
+  needsOf: (panel: P) => Needs | null,
+): Needs[] {
+  return panels.flatMap((p) => {
+    if (p.collapsed) return [];
+    const needs = needsOf(p);
+    return needs ? [needs] : [];
+  });
+}
+
 // The container's one list: two panels wanting the same symbol ask once.
 export const unionNeeds = (needs: { quotes: string[] }[]) => [
   ...new Set(needs.flatMap((n) => n.quotes)),

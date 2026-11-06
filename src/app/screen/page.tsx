@@ -50,7 +50,7 @@ export default async function ScreenPage({
 
   return (
     <div className="min-h-screen bg-zinc-50 px-6 py-10 font-sans text-zinc-900 dark:bg-zinc-950 dark:text-zinc-100 sm:py-14">
-      <main className="mx-auto flex w-full max-w-4xl flex-col gap-10">
+      <main className="mx-auto flex w-full max-w-6xl flex-col gap-10">
         <header className="flex flex-col gap-1">
           <Nav here="/screen" />
           <h1 className="mt-4 text-lg font-semibold tracking-tight">Screen</h1>

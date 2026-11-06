@@ -21,6 +21,11 @@ describe("sortByMove", () => {
     expect(codes(sortByMove([q("B", -3), q("A", 3)]))).toEqual(["B", "A"]);
   });
 
+  it("keeps watchlist order for three or more equal moves", () => {
+    const rows = [q("A", 2), q("B", -2), q("C", 2), q("D", -5)];
+    expect(codes(sortByMove(rows))).toEqual(["D", "A", "B", "C"]);
+  });
+
   it("leaves the list passed in unchanged", () => {
     const rows = [q("A", 1), q("B", -5), q("C", 2)];
     sortByMove(rows);

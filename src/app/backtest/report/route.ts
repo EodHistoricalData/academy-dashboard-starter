@@ -1,4 +1,5 @@
 import { loadCandles } from "@/lib/backtest/candles";
+import { isMock } from "@/lib/eodhd";
 import { STATED_ON, SYMBOL } from "@/lib/backtest/config";
 import { paramsFrom } from "@/lib/backtest/params";
 import { buildReport } from "@/lib/backtest/report";
@@ -27,6 +28,7 @@ export async function GET(req: Request) {
     pulledAt: candles.pulledAt,
     paramSetsTried: paramSetsTried(await readRuns(), SYMBOL),
     statedOn: STATED_ON,
+    source: isMock() ? "mock fixture" : "EODHD /eod",
   });
   return new Response(report, {
     headers: {

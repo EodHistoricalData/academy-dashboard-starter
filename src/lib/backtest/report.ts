@@ -25,6 +25,8 @@ export type ReportInput = {
   paramSetsTried: number;
   /** When the rule was written down, from PLAN.md. */
   statedOn: string;
+  /** Where the bars came from: the API, or the mock fixture. */
+  source: "EODHD /eod" | "mock fixture";
 };
 
 export function buildReport(input: ReportInput): string {
@@ -55,7 +57,7 @@ export function buildReport(input: ReportInput): string {
     "",
     `Under a cost of ${params.costBps} bps a trade, ${params.slippageBps} bps of slippage against`,
     `each trade and fills at ${fill}, on ${bars.length} daily bars of ${symbol} (${first} to ${last},`,
-    `adjusted close, EODHD, pulled ${pulledAt.slice(0, 10)}), a rule stated on ${input.statedOn} —`,
+    `adjusted close, ${input.source}, pulled ${pulledAt.slice(0, 10)}), a rule stated on ${input.statedOn} —`,
     `hold ${symbol} while its ${params.fast}-day average is above its ${params.slow}-day average —`,
     "would have produced the results below.",
     "",
@@ -70,7 +72,9 @@ export function buildReport(input: ReportInput): string {
     `- Symbol: ${symbol}`,
     `- Bars: ${bars.length}, ${first} to ${last}, daily`,
     "- Returns and signals on `adjusted_close`; fills on raw prices",
-    `- Vendor: EODHD /eod, pulled ${pulledAt.slice(0, 10)} and cached`,
+    input.source === "mock fixture"
+      ? "- Source: `fixtures/eod/SPY.US.json` in mock mode — invented prices in EODHD's shape, not market data"
+      : `- Vendor: EODHD /eod, pulled ${pulledAt.slice(0, 10)} and cached`,
     "",
     "## Assumptions",
     "",
@@ -87,12 +91,12 @@ export function buildReport(input: ReportInput): string {
     "|---|---:|---:|",
     `| Gross return | ${pct(totalReturn(run.gross))} | ${pct(totalReturn(control.gross))} |`,
     `| Net return | ${pct(totalReturn(run.net))} | ${pct(totalReturn(control.net))} |`,
-    `| Cost as share of gross | ${share.ofGross === null ? "no gross gain" : pct(share.ofGross, 0)} | — |`,
+    `| Cost as share of gross | ${share.ofGross === null ? "no gross gain" : plain(share.ofGross)} | — |`,
     `| Max drawdown | ${pct(maxDrawdown(run.net))} | ${pct(maxDrawdown(control.net))} |`,
     `| Time under water | ${underWater(run.net)} | ${underWater(control.net)} |`,
     `| Return / max drawdown | ${ratio(returnOverDrawdown(run.net))} | ${ratio(returnOverDrawdown(control.net))} |`,
     `| Trades | ${run.trades.length} | ${control.trades} |`,
-    `| Time in market | ${pct(run.timeInMarket, 0)} | 100% |`,
+    `| Time in market | ${plain(run.timeInMarket)} | 100% |`,
     "",
     "## Robustness",
     "",
@@ -130,6 +134,11 @@ export function buildReport(input: ReportInput): string {
 function pct(fraction: number, digits = 2): string {
   const v = fraction * 100;
   return `${v > 0 ? "+" : v < 0 ? "−" : ""}${Math.abs(v).toFixed(digits)}%`;
+}
+
+/** A share of something, which has no direction: 0.61 is 61%. */
+function plain(fraction: number): string {
+  return `${(fraction * 100).toFixed(0)}%`;
 }
 
 function ratio(v: number | null): string {

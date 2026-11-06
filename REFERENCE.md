@@ -142,3 +142,25 @@ a choice to you, the section for that unit says which one we made. Yours can dif
 - A reviewer who did not write it is a process (branch, pull request, fresh session, CI as
   the gate); nothing in the code changes for it. A reference branch has no pull request of
   its own, so the review prompt lives in `REVIEW.md`.
+
+## Build a Screener · unit 4: Make It Real, and Ship It
+
+- A shortlist you can defend: `src/lib/shortlist.ts` (`shortlist-v1`, keyed by code) and
+  `src/components/Shortlist.tsx`. A row's "Shortlist" opens a field for the reason and will
+  not save without one. No composite score: the sort stays a single named field.
+- The breadth wall: five lines in `PLAN.md`. The instrument counts are the course's count of
+  the US symbol list; this copy runs on fixtures and did not count.
+- Ship it beside the watchlist: `src/components/Nav.tsx` (two links, on both pages and the
+  loading skeleton) and "Add to watchlist" on every screen row.
+- Our choice for the join: course 1 kept the watchlist in `src/lib/watchlist.ts`, a file a
+  button cannot edit. Names added from the screen go into a cookie (`watchlist-added-v1`)
+  through a server action (`src/app/watchlist-actions.ts`); the server reads it beside the
+  file (`src/lib/my-tickers.ts`), so quotes are still fetched on the server. Every value is
+  checked against the ticker shape, the list is capped at ten, and each added name can be
+  removed from the watchlist page.
+- The screener's codes have no exchange suffix; `toTicker` adds it from the row's
+  `exchange`, which `ScreenRow` now carries.
+- `scripts/check-network.mjs` takes several pages: run it on `/` and `/screen`.
+- `fixtures/real-time.json` gains GOOGL.US and AMZN.US, so a name added from the screen shows
+  prices in mock mode.
+- `PLAN.md` ends with what was awkward about the join, as the brief for course 4.

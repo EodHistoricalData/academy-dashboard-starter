@@ -1,3 +1,4 @@
+import { isTicker } from "@/lib/added";
 import type { Quote } from "@/lib/quotes";
 import { isAvailable, type Row } from "@/lib/rows";
 
@@ -60,7 +61,7 @@ export function parseRules(raw: unknown): Rule[] {
     if (
       !r ||
       typeof r.id !== "string" ||
-      typeof r.ticker !== "string" ||
+      !isTicker(r.ticker) || // it becomes part of a request path
       !(RULE_FIELDS as readonly unknown[]).includes(r.field) ||
       !(RULE_OPS as readonly unknown[]).includes(r.op) ||
       typeof r.value !== "number" ||
@@ -72,7 +73,7 @@ export function parseRules(raw: unknown): Rule[] {
     return [
       {
         id: r.id,
-        ticker: r.ticker,
+        ticker: r.ticker as string,
         field: r.field as Rule["field"],
         op: r.op as Rule["op"],
         value: r.value,

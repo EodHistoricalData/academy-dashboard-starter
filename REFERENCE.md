@@ -183,3 +183,24 @@ a choice to you, the section for that unit says which one we made. Yours can dif
 - The control: `/backtest` draws buy and hold with the net-of-cost line on at 0 bps, and
   three numbers under it (`src/lib/backtest/baseline.ts`, `metrics.ts`). The chart is a
   server-drawn SVG (`src/components/EquityChart.tsx`), so no chart library is added.
+
+## Backtest Strategies · unit 2: Rules and Positions
+
+- The rule: `src/lib/backtest/strategy.ts`, a 20/50 moving-average crossover on adjusted
+  close, computed forwards in one pass. `sma` throws on a short window rather than averaging
+  what `slice` returned. `tests/strategy.test.ts` is the lesson's leak test (120 synthetic
+  bars, change bars 81 to 120, the signal at bar 80 must not move); it was run red on a
+  centred window first.
+- Parameters: `Params` and `DEFAULTS` (20, 50, 10 bps) in `src/lib/backtest/engine.ts`; the
+  page reads `?fast=&slow=&costBps=` through `src/lib/backtest/params.ts`. Every run on the
+  page is appended to `.cache/runs.jsonl` (`src/lib/backtest/runlog.ts`), and the page shows
+  how many parameter sets were tried. The defaults' first result is written in `PLAN.md`.
+- Entries and exits: `backtest()` is a four-branch state machine; the signal on bar i sets
+  the position on bar i+1, an open position is closed on the last bar, costs are charged at
+  each change. Our choice for this unit: the fill is the signal bar's close, which is what
+  a one-bar shift of close-to-close returns means. Unit 3 changes it to the next open.
+- Trades are recorded with raw prices and returns on the adjusted column; the page lists
+  the first ten.
+- The comparison: the control starts on the strategy's first bar with the same costs; four
+  numbers per line (total return, time in market, trades, max drawdown) and the neighbours
+  table (fast ±2, slow ±5). Neighbour runs are not logged as attempts.

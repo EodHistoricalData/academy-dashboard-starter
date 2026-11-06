@@ -31,7 +31,12 @@ export function PanelFrame({
           {aside ?? panel.type}
         </span>
       </header>
-      <div className="min-h-24 flex-1 p-4 text-sm">
+      {/* The layout's height is a limit, not a hint: a long list scrolls inside its panel
+          instead of pushing the rest of the cockpit off the screen. */}
+      <div
+        className="min-h-24 flex-1 overflow-auto p-4 text-sm"
+        style={{ maxHeight: `${h * 14}rem` }}
+      >
         {panel.type === "placeholder" ? (
           <p className="text-zinc-600 dark:text-zinc-400">{panel.config.reason}</p>
         ) : (

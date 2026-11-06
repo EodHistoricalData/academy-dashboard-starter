@@ -27,7 +27,8 @@ export type ScreenConfig = { filters: Filter[]; sort: Sort; follows: boolean };
 export type BacktestConfig = Params & { symbol: string; follows: boolean };
 export type QuoteConfig = { symbol: string; follows: boolean };
 
-type Base = { id: string; title: string; position: Position };
+/** `collapsed`: only the title shows, and the panel asks for nothing. Saved with the layout. */
+type Base = { id: string; title: string; position: Position; collapsed: boolean };
 export type Panel =
   | (Base & { type: "watchlist"; config: WatchlistConfig })
   | (Base & { type: "screen"; config: ScreenConfig })
@@ -51,6 +52,7 @@ export const DEFAULT_LAYOUT: Layout = {
       title: "Watchlist",
       config: { symbols: WATCHLIST, follows: false }, // kept still on purpose
       position: { x: 0, y: 0, w: 2, h: 2 },
+      collapsed: false,
     },
     {
       id: "screen",
@@ -58,6 +60,7 @@ export const DEFAULT_LAYOUT: Layout = {
       title: "Big and profitable",
       config: { filters: MY_FILTERS, sort: DEFAULT_SORT, follows: false },
       position: { x: 2, y: 0, w: 2, h: 2 },
+      collapsed: false,
     },
     {
       id: "quote",
@@ -65,6 +68,7 @@ export const DEFAULT_LAYOUT: Layout = {
       title: "Quote",
       config: { symbol: WATCHLIST[0], follows: true }, // shows what you select
       position: { x: 0, y: 2, w: 1, h: 1 },
+      collapsed: false,
     },
     {
       id: "backtest",
@@ -72,6 +76,7 @@ export const DEFAULT_LAYOUT: Layout = {
       title: "SPY.US, 20/50",
       config: { symbol: "SPY.US", ...BACKTEST_DEFAULTS, follows: false },
       position: { x: 1, y: 2, w: 3, h: 1 },
+      collapsed: false,
     },
   ],
 };
@@ -192,6 +197,7 @@ export function parseLayout(raw: unknown): Layout {
         id: typeof p.id === "string" && p.id !== "" ? p.id : `panel-${i}`,
         title: typeof p.title === "string" ? p.title : "Untitled",
         position: positionOf(p.position),
+        collapsed: p.collapsed === true,
       };
       const type = p.type;
       if (typeof type !== "string" || !Object.hasOwn(CHECK, type)) {

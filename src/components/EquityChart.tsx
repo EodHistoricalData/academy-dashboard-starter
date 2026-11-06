@@ -21,10 +21,13 @@ export function EquityChart({
   dates,
   series,
   caption,
+  band,
 }: {
   dates: string[];
   series: Series[];
   caption: string;
+  /** A stretch of bars to shade, such as the longest time under water. */
+  band?: { from: number; to: number; label: string };
 }) {
   const all = series.flatMap((s) => s.values).filter(Number.isFinite);
   if (dates.length < 2 || all.length === 0) {
@@ -45,6 +48,17 @@ export function EquityChart({
   return (
     <figure className="flex flex-col gap-2">
       <svg viewBox={`0 0 ${W} ${H}`} className="w-full" role="img" aria-label={caption}>
+        {band && band.to > band.from && (
+          <rect
+            x={x(band.from)}
+            y={PAD.top}
+            width={x(band.to) - x(band.from)}
+            height={H - PAD.top - PAD.bottom}
+            className="fill-amber-200/40 dark:fill-amber-900/30"
+          >
+            <title>{band.label}</title>
+          </rect>
+        )}
         {[min, (min + max) / 2, max].map((v) => (
           <g key={v}>
             <line
@@ -90,6 +104,12 @@ export function EquityChart({
         </text>
       </svg>
       <figcaption className="flex flex-wrap gap-x-4 gap-y-1 text-xs text-zinc-600 dark:text-zinc-400">
+        {band && band.to > band.from && (
+          <span className="flex items-center gap-1.5">
+            <span className="inline-block h-2.5 w-4 bg-amber-200/70 dark:bg-amber-900/50" />
+            {band.label}
+          </span>
+        )}
         {series.map((s) => (
           <span key={s.label} className="flex items-center gap-1.5">
             <svg width="18" height="6" aria-hidden="true">

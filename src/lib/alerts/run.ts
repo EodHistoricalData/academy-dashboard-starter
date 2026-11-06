@@ -1,4 +1,5 @@
 import { createHash } from "node:crypto";
+import { newYorkDate, tradingDate } from "@/lib/alerts/clock";
 import { alertMessage, type Message } from "@/lib/alerts/deliver";
 import { evaluate, type Bar } from "@/lib/alerts/evaluate";
 import { FetchError } from "@/lib/alerts/retry";
@@ -15,8 +16,8 @@ import {
 export type RunDeps = {
   rules: Rule[];
   state: State;
-  /** Today's New York date, YYYY-MM-DD, from the clock the script read once. */
-  today: string;
+  /** The instant of this run, read once by the script. Nothing here reads the clock. */
+  now: Date;
   save: (state: State) => Promise<void>;
   /** One request for a symbol's recent bars, oldest first. Throws a FetchError on failure. */
   fetchBars: (symbol: string) => Promise<Bar[]>;
@@ -36,7 +37,8 @@ export type RunResult = {
  * One run of the alert, made safe to repeat. In order:
  *
  *  1. Resend every key still pending from an earlier run, before anything else.
- *  2. Skip the symbols already judged for today; if none is left, stop: nothing new.
+ *  2. On a weekend there is no trading date and nothing to fetch. Otherwise skip the
+ *     symbols already judged for today's New York trading date; if none is left, stop.
  *  3. Fetch the rest, and judge every bar newer than the last one judged, oldest first,
  *     so a missed Monday is caught up on Tuesday under Monday's key.
  *  4. Mark new firings pending and save, send one message, mark them sent and save.
@@ -45,21 +47,27 @@ export type RunResult = {
  * duplicate is the price of never losing an alert.
  */
 export async function runAlerts(deps: RunDeps): Promise<RunResult> {
-  const { rules, state, today, save, log } = deps;
+  const { rules, state, now, save, log } = deps;
   const result: RunResult = { fetched: [], sent: [] };
+  const sentOn = newYorkDate(now);
 
   // 1. What an earlier run marked pending and could not confirm.
   const pending = pendingKeys(state);
   if (pending.length > 0) {
     const message = alertMessage(pending.map((k) => resentLine(k, rules)))!;
     await deps.send(message, idempotencyKey(pending));
-    markSent(state, pending, today);
+    markSent(state, pending, sentOn);
     await save(state);
     result.sent.push(...pending);
     log(`resent ${pending.length} pending alert${pending.length === 1 ? "" : "s"}`);
   }
 
-  // 2. Nothing to ask for if every symbol was already judged today.
+  // 2. Nothing to ask for on a weekend, or if every symbol was already judged today.
+  const today = tradingDate(now);
+  if (today === null) {
+    log(`no trading date on ${sentOn} in New York (a weekend): nothing to fetch, 0 calls`);
+    return result;
+  }
   const symbols = [...new Set(rules.map((r) => r.symbol))];
   const due = symbols.filter((s) => state.symbols[s] !== today);
   if (due.length === 0) {
@@ -124,7 +132,7 @@ export async function runAlerts(deps: RunDeps): Promise<RunResult> {
     log("nothing to send: no rule fired on a new bar");
   } else {
     await deps.send(message, idempotencyKey(keys));
-    markSent(state, keys, today);
+    markSent(state, keys, sentOn);
     await save(state);
     result.sent.push(...keys);
   }

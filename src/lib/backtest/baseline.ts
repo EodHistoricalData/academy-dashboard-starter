@@ -1,4 +1,4 @@
-import type { Bar } from "@/lib/backtest/candles";
+import type { Bar } from "@/lib/backtest/bars";
 import { compound, dailyReturns } from "@/lib/backtest/returns";
 
 /**

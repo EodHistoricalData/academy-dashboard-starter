@@ -1,7 +1,7 @@
 import { estimateCalls } from "@/lib/cost";
 import { eodhdFetch, hasKey, isMock, redactKey } from "@/lib/eodhd";
 import { checkScreenerQuery } from "@/lib/filters";
-import { toScreenRows } from "@/lib/screens";
+import { toScreenRows } from "@/lib/screen-query";
 
 /**
  * The endpoints the proxy will sign with your key and forward. Everything else is a 404.

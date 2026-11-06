@@ -1,4 +1,4 @@
-import type { Bar } from "@/lib/backtest/candles";
+import type { Bar } from "@/lib/backtest/bars";
 import { backtest, type Params, type Run } from "@/lib/backtest/strategy";
 import { totalReturn } from "@/lib/backtest/metrics";
 import { signals } from "@/lib/backtest/signal";

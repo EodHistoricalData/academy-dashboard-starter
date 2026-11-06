@@ -1,5 +1,5 @@
 import { buyAndHold } from "@/lib/backtest/baseline";
-import type { Bar } from "@/lib/backtest/candles";
+import type { Bar } from "@/lib/backtest/bars";
 import { backtest, costShare, type Params, type Run } from "@/lib/backtest/strategy";
 import { honestyChecks } from "@/lib/backtest/shuffle";
 import {

@@ -3,7 +3,7 @@ import { ShortlistCell } from "@/components/Shortlist";
 import { addToWatchlist } from "@/app/watchlist-actions";
 import { toTicker } from "@/lib/added";
 import { asPercent, compact, signedPercent } from "@/lib/format";
-import type { ScreenRow } from "@/lib/screens";
+import type { ScreenRow } from "@/lib/screen-query";
 
 /**
  * The screener's columns. Adding one is an entry here and nothing else: the table, the

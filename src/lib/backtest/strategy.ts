@@ -1,4 +1,4 @@
-import type { Bar } from "@/lib/backtest/candles";
+import type { Bar } from "@/lib/backtest/bars";
 import { timeInMarket } from "@/lib/backtest/metrics";
 import type { Params } from "@/lib/backtest/params";
 import { positions as positionsOf } from "@/lib/backtest/positions";

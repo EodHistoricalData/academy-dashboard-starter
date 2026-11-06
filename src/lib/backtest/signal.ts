@@ -1,4 +1,4 @@
-import { assertOldestFirst, type Bar } from "@/lib/backtest/candles";
+import { assertOldestFirst, type Bar } from "@/lib/backtest/bars";
 
 /**
  * The rule, in one sentence: if the fast moving average of the adjusted close is above the

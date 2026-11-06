@@ -1,3 +1,4 @@
+import { NoteField } from "@/components/NoteField";
 import type { Quote } from "@/lib/quotes";
 import { isAvailable, type Row as WatchlistRow } from "@/lib/rows";
 
@@ -25,6 +26,9 @@ export function Watchlist({ rows }: { rows: WatchlistRow[] }) {
           </th>
           <th scope="col" className="hidden py-2 text-right sm:table-cell">
             Volume
+          </th>
+          <th scope="col" className="w-2/5 py-2 pl-6 text-left">
+            Note
           </th>
         </tr>
       </thead>
@@ -76,6 +80,9 @@ function Row({ quote }: { quote: Quote }) {
       <td className="hidden py-2.5 text-right text-zinc-500 dark:text-zinc-400 sm:table-cell">
         {quote.volume === null ? "—" : quote.volume.toLocaleString("en-US")}
       </td>
+      <td className="py-1.5 pl-6">
+        <NoteField code={quote.code} />
+      </td>
     </tr>
   );
 }
@@ -97,6 +104,9 @@ function UnavailableRow({ code }: { code: string }) {
       <td colSpan={3} className="py-2.5 text-right text-zinc-500 dark:text-zinc-400">
         Unavailable: no prices for this symbol. Check the ticker, or whether
         your plan covers its exchange.
+      </td>
+      <td className="py-1.5 pl-6">
+        <NoteField code={code} />
       </td>
     </tr>
   );

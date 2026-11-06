@@ -1,4 +1,5 @@
 import type { ReactNode } from "react";
+import { cell } from "@/lib/format";
 
 /**
  * One column: how to turn a row into a cell. The table knows nothing else about the data.
@@ -69,7 +70,7 @@ export function DataTable<T>({
             >
               {columns.map((c, i) => {
                 const className = `px-3 py-2.5 first:pl-0 last:pr-0 ${alignOf(c)} ${toneOf(c, row, i)}`;
-                const content = c.input ? c.input(row) : (c.render(row) ?? "—");
+                const content = c.input ? c.input(row) : cell(c.render(row));
                 // The first column names the row, for anyone listening to the table.
                 return i === 0 ? (
                   <th key={c.key} scope="row" className={className}>

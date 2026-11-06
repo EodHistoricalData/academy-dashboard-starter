@@ -11,8 +11,9 @@
  *   BTC-USD.CC                         crypto
  *   EURUSD.FOREX                       FX
  *
- * Every ticker here costs the same single API call as one: the quotes are fetched in one
- * multi-symbol request. Length is not what burns your quota — how often you reload is.
+ * The quotes are fetched in one multi-symbol request, but EODHD bills that request one API
+ * call PER TICKER: five tickers are five calls on every page load. On the free plan's 20
+ * calls a day, length and reloads both count. The page shows what one load costs.
  */
 export const WATCHLIST: string[] = [
   "AAPL.US",

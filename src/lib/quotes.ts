@@ -1,3 +1,4 @@
+import { estimateCalls } from "@/lib/cost";
 import { eodhdFetch } from "@/lib/eodhd";
 
 /** One row of the watchlist, as the API gives it. */
@@ -22,7 +23,32 @@ export type Account = {
 type RawQuote = Partial<Quote> & { code?: string };
 
 /**
- * Quotes for the whole watchlist in ONE request.
+ * The one request that fetches the whole watchlist: the first ticker in the path, the
+ * rest in `s`. Null for an empty list, which needs no request at all.
+ */
+export function quotesRequest(
+  tickers: string[],
+): { path: string; params: Record<string, string> } | null {
+  if (tickers.length === 0) return null;
+  const [first, ...rest] = tickers;
+  const params: Record<string, string> = {};
+  if (rest.length > 0) params.s = rest.join(",");
+  return { path: `real-time/${first}`, params };
+}
+
+/**
+ * What one load of the page spends, in API calls: one per ticker for the quotes, nothing
+ * for the plan read. Worked out from the same request quotes() sends, so the number on the
+ * page cannot drift from what the page actually does.
+ */
+export function pageLoadCalls(tickers: string[]): number {
+  const req = quotesRequest(tickers);
+  const forQuotes = req ? (estimateCalls(req.path, req.params) ?? 0) : 0;
+  return forQuotes + (estimateCalls("user") ?? 0);
+}
+
+/**
+ * Quotes for the whole watchlist in ONE request — which is still one call per ticker.
  *
  * The endpoint takes the first ticker in the path and the rest in `s`, and — this is the
  * trap — it answers with a bare object for a single ticker and an array when `s` is
@@ -33,14 +59,11 @@ type RawQuote = Partial<Quote> & { code?: string };
  * every field is checked rather than trusted.
  */
 export async function quotes(tickers: string[]): Promise<Quote[] | null> {
-  if (tickers.length === 0) return [];
-
-  const [first, ...rest] = tickers;
-  const params: Record<string, string> = {};
-  if (rest.length > 0) params.s = rest.join(",");
+  const req = quotesRequest(tickers);
+  if (req === null) return [];
 
   try {
-    const res = await eodhdFetch(`real-time/${first}`, params);
+    const res = await eodhdFetch(req.path, req.params);
     if (!res.ok) return null;
 
     const body: unknown = await res.json();

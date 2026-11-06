@@ -6,6 +6,7 @@ import { layoutsFrom, resolveLayout } from "@/lib/layouts";
 import { notesFrom } from "@/lib/notes";
 import { getDoc } from "@/lib/store";
 import { currentUser } from "@/lib/user";
+import { rulesFor } from "@/lib/user-rules";
 
 export const dynamic = "force-dynamic";
 export const metadata = { title: "Dashboard · Market tool starter" };
@@ -26,6 +27,7 @@ export default async function DashboardPage({
   const layouts = layoutsFrom(stored?.payload ?? null);
   const asked = typeof query.layout === "string" ? query.layout : null;
   const notes = notesFrom(user ? getDoc(user.id, "notes")?.payload : null);
+  const rules = rulesFor(user);
   return (
     <div className="min-h-screen bg-zinc-50 px-6 py-10 font-sans text-zinc-900 dark:bg-zinc-950 dark:text-zinc-100 sm:py-14">
       <main className="mx-auto flex w-full max-w-6xl flex-col gap-8">
@@ -45,6 +47,7 @@ export default async function DashboardPage({
           initialVersion={stored?.version ?? 0}
           signedIn={user !== null}
           notes={notes}
+          initialRules={rules.rules}
         />
       </main>
     </div>

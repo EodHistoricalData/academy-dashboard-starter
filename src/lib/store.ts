@@ -21,7 +21,13 @@ import { DatabaseSync } from "node:sqlite";
  */
 
 /** The documents that exist. Anything else is a 404, not a new document. */
-export const DOC_KEYS = ["saved-screens", "shortlist", "notes", "layouts"] as const;
+export const DOC_KEYS = [
+  "saved-screens",
+  "shortlist",
+  "notes",
+  "layouts",
+  "rules",
+] as const;
 export type DocKey = (typeof DOC_KEYS)[number];
 
 export function isDocKey(key: string): key is DocKey {

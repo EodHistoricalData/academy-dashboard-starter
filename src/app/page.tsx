@@ -12,7 +12,8 @@ import { removeFromWatchlist } from "@/app/watchlist-actions";
 import { myTickers } from "@/lib/my-tickers";
 import { getDoc } from "@/lib/store";
 import { currentUser } from "@/lib/user";
-import { firedAlerts, RULES } from "@/lib/rules";
+import { rulesFor } from "@/lib/user-rules";
+import { firedAlerts } from "@/lib/rules";
 
 // Server-rendered on every request, never prerendered: a page built at deploy time would
 // show prices from deploy time. The whole point is that these numbers are yours and current.
@@ -24,6 +25,7 @@ export default async function Home() {
   const { list, added } = await myTickers();
   const user = await currentUser();
   const notes = user ? getDoc(user.id, "notes") : null;
+  const { rules } = rulesFor(user);
 
   // Two independent requests, so they go together rather than one waiting on the other.
   // quotes() checks for the key itself and sends nothing without one.
@@ -62,7 +64,7 @@ export default async function Home() {
             says it and the table carries its own caption, so that made three announcements
             of the same word for anyone listening. */}
         {rows !== null && rows.length > 0 && (
-          <Alerts fired={firedAlerts(RULES, rows)} ruleCount={RULES.length} />
+          <Alerts fired={firedAlerts(rules, rows)} ruleCount={rules.length} />
         )}
 
         {rows !== null && rows.length > 0 && (

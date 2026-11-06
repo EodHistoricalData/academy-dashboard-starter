@@ -100,6 +100,18 @@ describe("deliver", () => {
     });
   });
 
+  it("gives Resend the firing key as Idempotency-Key, so a resend is not sent twice", async () => {
+    const fetchFn = fakeFetch();
+    const channel = deliveryChannel({
+      ALERT_DELIVERY: "email",
+      RESEND_API_KEY: RESEND,
+      ALERT_EMAIL_TO: "me@example.com",
+    });
+    await deliver(channel, message, fetchFn, { idempotencyKey: "nvda:2026-10-30" });
+    const [, init] = fetchFn.mock.calls[0];
+    expect(new Headers(init?.headers).get("idempotency-key")).toBe("nvda:2026-10-30");
+  });
+
   it("fails with the channel and status, and no token in the error", async () => {
     const channel = deliveryChannel({
       ALERT_DELIVERY: "telegram",

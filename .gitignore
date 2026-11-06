@@ -45,3 +45,6 @@ yarn-error.log*
 # typescript
 *.tsbuildinfo
 next-env.d.ts
+
+# Alert state from mock runs: fixture dates, never the real record.
+alerts/state.mock.json

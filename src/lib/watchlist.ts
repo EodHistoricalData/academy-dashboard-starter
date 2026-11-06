@@ -15,6 +15,16 @@
  * call PER TICKER: five tickers are five calls on every page load. On the free plan's 20
  * calls a day, length and reloads both count. The page shows what one load costs.
  */
-// VOD.LSE is in pence. Nothing on the page adds prices together, so a mixed list is safe
-// to show; it would not be safe to total.
-export const WATCHLIST: string[] = ["AAPL.US", "MSFT.US", "SPY.US", "VOD.LSE"];
+// In the order I read them at 7am: the market, what I hold, then the rest. VOD.LSE is in
+// pence; nothing on the page adds prices together, so a mixed list is safe to show.
+// 005930.KO (Samsung, Seoul) is here to find out whether my plan covers it: if its row
+// comes back unavailable, that is the answer.
+export const WATCHLIST: string[] = [
+  "SPY.US",
+  "AAPL.US",
+  "MSFT.US",
+  "NVDA.US",
+  "VOD.LSE",
+  "BTC-USD.CC",
+  "005930.KO",
+];

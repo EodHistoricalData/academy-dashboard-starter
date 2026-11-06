@@ -211,3 +211,24 @@ a choice to you, the section for that unit says which one we made. Yours can dif
 - The comparison: the control starts on the strategy's first bar with the same costs; four
   numbers per line (total return, time in market, trades, max drawdown) and the neighbours
   table (fast ±2, slow ±5). Neighbour runs are not logged as attempts.
+
+## Backtest Strategies · unit 3: Honesty Checks
+
+- Costs: charged at each position change, compounding; the page prints cost as a share of
+  the starting balance and of the gross gain, and the net return at 0, 5, 10 and 25 bps.
+- Slippage and fills: `Params` gains `slippageBps` (default 5, always against the trade)
+  and `fill`, defaulting to `"next-open"`; `"signal-close"` stays available to show what it
+  flatters. Opens are adjusted by the same factor as that bar's close so returns stay on the
+  adjusted column. Every fill is recorded with its bar; the page shows the median overnight
+  gap on the fill bars beside the cost assumption.
+- The four tests, in `tests/honesty.test.ts` on the SPY fixture: future mutation,
+  truncation, fill range, and the shuffle, labelled as a null test for time structure.
+  `src/lib/backtest/shuffle.ts` holds `fillsOutsideRange` and a seeded `shuffled`.
+- Our choice for the fill-range assertion: it checks the price filled at (the bar's open,
+  or its close) before slippage; with slippage added, a fill at an open that was also the
+  day's high would sit outside the range by construction.
+- The unit-2 engine tests keep their hand-worked numbers by running the unit-2 model
+  (`fill: "signal-close"`, no slippage) explicitly.
+- Survivorship: the backtest runs on SPY alone and says so on the page and in `PLAN.md`,
+  with the course's live and delisted counts. Counting the delisted list yourself is one
+  request through the proxy; nothing in the tool needs it.

@@ -1,16 +1,33 @@
 /**
- * Every assumption of a run, in one place, printed beside its result. Cost sits with the
- * rule's own numbers on purpose: it is a stated assumption of the run, not a setting.
+ * Every assumption of a run, in one place, printed beside its result. Cost, slippage and
+ * the fill rule sit with the rule's own numbers on purpose: they are stated assumptions of
+ * the run, not settings.
  */
 export type Params = {
   fast: number;
   slow: number;
-  /** Charged on every position change, both ways: 10 bps in, 10 bps out. */
+  /** Fees, half the spread and impact, charged on every position change: in and out. */
   costBps: number;
+  /** How much worse than the fill price you get, always against you. */
+  slippageBps: number;
+  /**
+   * When a decision made at a bar's close is executed. "next-open" is the honest default:
+   * the first price after the close you decided on. "signal-close" buys at a price known
+   * only once the bar had closed, and is kept to show how much it flatters.
+   */
+  fill: "next-open" | "signal-close";
 };
 
-/** Chosen from the rule's textbook form before looking at any result. */
-export const DEFAULTS: Params = { fast: 20, slow: 50, costBps: 10 };
+/** Chosen from the rule's textbook form and the course's cost default, before any result. */
+export const DEFAULTS: Params = {
+  fast: 20,
+  slow: 50,
+  costBps: 10,
+  slippageBps: 5,
+  fill: "next-open",
+};
+
+type NumericKey = "fast" | "slow" | "costBps" | "slippageBps";
 
 /**
  * Parameters from the address bar, each checked against a range and dropped to its
@@ -19,7 +36,7 @@ export const DEFAULTS: Params = { fast: 20, slow: 50, costBps: 10 };
  * shorter than the slow, is a run that means nothing.
  */
 export function paramsFrom(query: Record<string, string | string[] | undefined>): Params {
-  const int = (key: keyof Params, min: number, max: number) => {
+  const int = (key: NumericKey, min: number, max: number) => {
     const raw = query[key];
     const v = typeof raw === "string" && /^\d+$/.test(raw) ? Number(raw) : NaN;
     return v >= min && v <= max ? v : DEFAULTS[key];
@@ -27,7 +44,11 @@ export function paramsFrom(query: Record<string, string | string[] | undefined>)
   const fast = int("fast", 2, 100);
   const slow = int("slow", 3, 200);
   const costBps = int("costBps", 0, 100);
-  return fast < slow ? { fast, slow, costBps } : { ...DEFAULTS, costBps };
+  const slippageBps = int("slippageBps", 0, 100);
+  const fill = query.fill === "signal-close" ? "signal-close" : DEFAULTS.fill;
+  return fast < slow
+    ? { fast, slow, costBps, slippageBps, fill }
+    : { ...DEFAULTS, costBps, slippageBps, fill };
 }
 
 /** The chosen parameters and their neighbours: fast ±2, slow ±5. */

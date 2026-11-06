@@ -22,6 +22,7 @@ function WatchlistPanelView({ config, data, onSelect }: PanelProps<WatchlistConf
       caption="Watchlist: last price and change since the previous close."
       empty="No symbols on this watchlist."
       onRowClick={(r) => onSelect(r.code)}
+      selectedKey={data.selected}
     />
   );
 }

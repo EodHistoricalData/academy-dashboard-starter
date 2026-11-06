@@ -28,6 +28,8 @@ export type PanelData = {
   bars: { rows: Bar[]; fetchedAt: number } | null;
   /** The watchlist's notes, as data like everything else. */
   notes: Notes;
+  /** The selected symbol, so a panel can mark its row. Reporting a click is onSelect. */
+  selected: string | null;
 };
 
 /**

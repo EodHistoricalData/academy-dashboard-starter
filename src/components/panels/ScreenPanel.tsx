@@ -19,6 +19,7 @@ function ScreenPanelView({ data, onSelect }: PanelProps<ScreenConfig>) {
       caption="Companies matching the screen. They match the filters; that is all they are."
       empty="Nothing matches these filters."
       onRowClick={(r) => onSelect(toTicker(r))}
+      selectedKey={data.selected?.replace(/\.[A-Z]+$/, "") ?? null}
     />
   );
 }

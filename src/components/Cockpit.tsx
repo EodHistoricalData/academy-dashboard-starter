@@ -1,7 +1,9 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useSearchParams } from "next/navigation";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import { BacktestPanel } from "@/components/panels/BacktestPanel";
+import { QuotePanel } from "@/components/panels/QuotePanel";
 import { ScreenPanel } from "@/components/panels/ScreenPanel";
 import { WatchlistPanel } from "@/components/panels/WatchlistPanel";
 import { PanelFrame } from "@/components/PanelFrame";
@@ -21,17 +23,36 @@ import {
   screenKey,
   screenViaProxy,
 } from "@/lib/proxy-fetch";
+import { toTicker } from "@/lib/added";
 import type { ScreenRow } from "@/lib/screen-query";
+import {
+  fromAddress,
+  nextSelection,
+  NO_SELECTION,
+  type Selection,
+  shownSymbol,
+} from "@/lib/selection";
 
 /** Which definition draws which panel type. The container knows them all; they know none. */
 const PANELS: Record<string, PanelDef<never>> = {
   watchlist: WatchlistPanel as PanelDef<never>,
   screen: ScreenPanel as PanelDef<never>,
   backtest: BacktestPanel as PanelDef<never>,
+  quote: QuotePanel as PanelDef<never>,
 };
 
 function defOf(panel: Panel): PanelDef<unknown> | null {
   return (PANELS[panel.type] as PanelDef<unknown> | undefined) ?? null;
+}
+
+/**
+ * The config a panel is drawn with: its own, except that a following panel with a symbol
+ * shows the selection. The container decides this; the panel never sees the selection.
+ */
+function effectiveConfig(panel: Panel, selection: Selection): unknown {
+  if (panel.type !== "quote" && panel.type !== "backtest") return panel.config;
+  const symbol = shownSymbol(panel, selection) ?? panel.config.symbol;
+  return symbol === panel.config.symbol ? panel.config : { ...panel.config, symbol };
 }
 
 type Loaded = {
@@ -54,12 +75,61 @@ export function Cockpit({ layout, notes }: { layout: Layout; notes: Notes }) {
     bars: createRequestCache(eodViaProxy, Date.now, 60 * 60_000),
   }));
   const [loaded, setLoaded] = useState<Loaded>(EMPTY);
+  const [selection, setSelection] = useState<Selection>(NO_SELECTION);
+
+  // The one way the selection changes. Selecting what is already selected returns the
+  // same object, so nothing re-renders: remove that guard in nextSelection and the two
+  // effects below chase each other through the address bar.
+  const select = useCallback((symbol: string, source: string) => {
+    setSelection((current) => nextSelection(current, symbol, source));
+  }, []);
+
+  const needsByPanel = useMemo(
+    () =>
+      layout.panels.map((p) => {
+        const def = defOf(p);
+        return def ? def.dataNeeds(effectiveConfig(p, selection) as never) : null;
+      }),
+    [layout, selection],
+  );
+
+  // Every symbol on the page: the only ones the address may select.
+  const showing = useMemo(
+    () => [
+      ...new Set([
+        ...unionNeeds(needsByPanel.flatMap((n) => (n ? [n] : []))),
+        ...[...loaded.screens.values()].flatMap((s) => s.value.map(toTicker)),
+      ]),
+    ],
+    [needsByPanel, loaded],
+  );
+
+  // The selection goes into the address, so a view can be shared and survives a reload.
+  useEffect(() => {
+    if (selection.symbol === null) return;
+    const query = new URLSearchParams(window.location.search);
+    query.set("symbol", selection.symbol);
+    window.history.replaceState(null, "", `?${query}`);
+  }, [selection]);
+
+  // ...and comes back from it, as a stranger's input: only a symbol the page shows. It runs
+  // again whenever what the page shows changes (a screen arriving can make an addressed
+  // symbol acceptable), and what the page shows includes the selected symbol. So every
+  // selection that is a new object runs it once more: the no-op in nextSelection is what
+  // ends that, and without it the two effects feed each other for ever.
+  // The address is read where it is now, not as this render saw it: the effect above may
+  // have just written a newer symbol, and the older one would undo the click.
+  const searchParams = useSearchParams();
+  useEffect(() => {
+    const now = new URLSearchParams(window.location.search).get("symbol");
+    const addressed = fromAddress(now, showing);
+    // Setting state from an outside system, the address, is what this effect is for.
+    // eslint-disable-next-line react-hooks/set-state-in-effect
+    if (addressed !== null) select(addressed, "address");
+  }, [searchParams, showing, select]);
 
   useEffect(() => {
-    const needs = layout.panels.flatMap((p): Needs[] => {
-      const def = defOf(p);
-      return def ? [def.dataNeeds(p.config as never)] : [];
-    });
+    const needs = needsByPanel.flatMap((n) => (n ? [n] : []));
     const symbols = unionNeeds(needs);
     const screens = [...new Set(needs.flatMap((n) => (n.screen ? [screenKey(n.screen)] : [])))];
     const histories = [...new Set(needs.flatMap((n) => (n.eod ? [n.eod] : [])))];
@@ -83,7 +153,7 @@ export function Cockpit({ layout, notes }: { layout: Layout; notes: Notes }) {
     return () => {
       live = false;
     };
-  }, [layout, stores]);
+  }, [needsByPanel, stores]);
 
   function dataFor(needs: Needs): PanelData {
     const screen = needs.screen ? loaded.screens.get(screenKey(needs.screen)) : undefined;
@@ -93,22 +163,23 @@ export function Cockpit({ layout, notes }: { layout: Layout; notes: Notes }) {
       screen: screen ? { rows: screen.value, fetchedAt: screen.fetchedAt } : null,
       bars: bars ? { rows: bars.value, fetchedAt: bars.fetchedAt } : null,
       notes,
+      selected: selection.symbol,
     };
   }
 
   return (
     <div className="grid auto-rows-[minmax(8rem,auto)] grid-cols-1 gap-4 sm:grid-cols-4">
-      {layout.panels.map((panel) => {
+      {layout.panels.map((panel, i) => {
         const def = defOf(panel);
-        if (!def) return <PanelFrame key={panel.id} panel={panel} />;
-        const config = panel.config as never;
+        const needs = needsByPanel[i];
+        if (!def || !needs) return <PanelFrame key={panel.id} panel={panel} />;
         const { Component } = def;
         return (
           <PanelFrame key={panel.id} panel={panel}>
             <Component
-              config={config}
-              data={dataFor(def.dataNeeds(config))}
-              onSelect={() => {}}
+              config={effectiveConfig(panel, selection) as never}
+              data={dataFor(needs)}
+              onSelect={(symbol) => select(symbol, panel.id)}
               onConfigChange={() => {}}
             />
           </PanelFrame>

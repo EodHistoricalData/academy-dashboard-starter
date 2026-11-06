@@ -99,3 +99,29 @@ My own pass, before any second reader:
   data's dates. The quote panel prints the last trade time.
 - Failure: a store that does not answer leaves the cockpit drawing and says the layout was
   not saved; one panel's crash stays in that panel.
+
+### The second reader's findings, sorted
+
+`notes/review-cockpit.md` is the review of a session that did not build the cockpit. Each
+finding marked real gets a failing test first and its fix second, a commit each.
+
+Real, fixed here:
+- The cross-user 404 was tested for saved screens only; layouts and rules now too.
+- Collapsing a panel did not exist, so every panel always cost: a collapsed panel now adds
+  nothing to the union.
+- A store that cannot be read made the dashboard, the home page and the screen page answer
+  500 before anything drew. The first read is now guarded, and the page says what failed.
+- A stored rule's ticker was not checked against the ticker shape before it reached a
+  request path.
+
+Real, left for the refresh-budget unit, where they belong: Refresh and Retry force every
+request with no limit, and Retry re-asks for quotes that did not fail; a symbol the API
+omits is never cached; the age next to a panel uses one row's fetch time. Real and small,
+noted for later: a failed or conflicting save of the rules is silent; duplicate panel ids;
+a layout named `__proto__`; a damaged rules document reads as "no rules yet".
+
+Plausible, but not as stated: the digest's time is the time of the check, which is when the
+rule fired; the debounce counting a reload of the same tick twice is a real gap in the
+model and is written down rather than fixed.
+
+Weakest lens, as the reader said: failure, on the server's first read.

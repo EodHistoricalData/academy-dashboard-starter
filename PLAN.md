@@ -66,3 +66,38 @@ Next: a screen that narrows a whole market to the few names worth adding to this
 
 The API key must never reach the browser. Every market request goes through the
 server-side proxy, and nothing reads the key outside `src/lib/eodhd.ts`.
+
+## Course 2: the rebuild into a screener
+
+Purpose: a page that narrows the US market to the twenty biggest profitable companies, so
+I know which names are worth reading about. It finds what matches my filters; it does not
+judge them.
+
+**Survives untouched** (market-tool code, not watchlist code):
+`src/lib/eodhd.ts`, `src/lib/proxy.ts`, `src/app/api/proxy/[...path]/route.ts`,
+`src/lib/cost.ts`, `src/lib/mock.ts`, `src/app/api/usage/route.ts`,
+`src/components/WallMeter.tsx`, `src/lib/failure.ts`, `scripts/`, `.githooks/`, the CI
+workflow, and their tests.
+
+**Generalises:** the table (`src/components/Watchlist.tsx`): same behaviour, different
+columns and rows. The fetch-check-narrow pattern inside `src/lib/quotes.ts`, which the
+screener needs too. `src/lib/rows.ts` (shape check at the boundary) as a pattern.
+
+**New:** the universe, filters, an ordering, saved screens: `src/lib/screens.ts`, a
+`/screen` page, a screener fixture.
+
+**Dies** (in the screener; the watchlist keeps them): notes (`NoteField.tsx`,
+`notes.ts`), threshold rules (`rules.ts`, `Alerts.tsx`), the manual sort
+(`SortedWatchlist.tsx`, `sort.ts`), `Freshness.tsx`'s live-quote bands. They belong to
+instruments I chose; a result set that changes on every run has no place for them.
+`src/lib/watchlist.ts` stays the watchlist's own.
+
+### Universe
+
+Common stock on US exchanges. Counted from `/exchange-symbol-list/US`, barely a third of
+"the US market" is common stock; funds, ETFs, indices, warrants and units are out, and so
+is preferred stock: I screen on earnings per share, which a preferred share does not have.
+
+The screener has no instrument-type filter I can rely on, so the screen itself keeps the
+others out: `earnings_share > 0` drops anything that reports no earnings (funds, indices),
+and it also drops loss-making companies, which I accept and say on the page.

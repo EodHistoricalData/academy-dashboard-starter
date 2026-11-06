@@ -50,6 +50,18 @@ Deployed at a URL, showing my tickers with live-ish prices and change, readable 
 phone, without my API key appearing anywhere in the browser: no request to `eodhd.com`
 in the network tab, and `npm run check:leak` green.
 
+### Checked at the end of course 1
+
+- Deployed at a URL: not on this copy. Once it is, `node scripts/check-network.mjs <url>`
+  stands in for the network tab.
+- My tickers with live-ish prices and change: met, plus a sort, a note per ticker and one
+  rule.
+- Readable on my phone: met at 390px wide; notes are a desk feature, hidden there.
+- No key in the browser: met. `npm run check:leak` is green, and the network check is
+  clean against a local build.
+
+Next: a screen that narrows a whole market to the few names worth adding to this list.
+
 ## Riskiest unknown
 
 The API key must never reach the browser. Every market request goes through the

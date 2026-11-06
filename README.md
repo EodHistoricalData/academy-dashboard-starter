@@ -143,6 +143,26 @@ The prompts the course uses are in [`prompts/`](prompts/).
 
 The hooks are a seatbelt, not a lock: they cannot see a key you never staged, and they cannot see one already in your history. If a key does reach a public repo, rotate it. Removing the commit is not enough.
 
+## Signing in to keep your documents on the server
+
+Saved screens, the shortlist, notes and (later) dashboard layouts are kept in a small
+document store on the server: SQLite through Node's built-in `node:sqlite`, in
+`.data/app.db`, which is gitignored. That needs Node 22.13 or later, which `.nvmrc`
+already gives you.
+
+The store belongs to one owner, who signs in at `/login`. Two variables, in `.env.local`
+and in your host's settings, never prefixed `NEXT_PUBLIC_`:
+
+| Variable | What it is |
+|---|---|
+| `DASHBOARD_PASSWORD` | The password you sign in with. |
+| `SESSION_SECRET` | A long random string that signs the session cookie: `node -e "console.log(require('crypto').randomBytes(32).toString('base64url'))"` |
+| `STORE_FILE` | Optional. Where the store file goes; `.data/app.db` by default. |
+
+In mock mode with no `DASHBOARD_PASSWORD`, user 1 is assumed so the course runs without
+setup, and the pages say so. Outside mock mode, nobody is assumed: until you sign in, what
+you save stays in this browser.
+
 ## Licence and data use
 
 The **code** here is MIT. Fork it, change it, ship it.

@@ -1,11 +1,12 @@
 import type { Quote } from "@/lib/quotes";
+import { isAvailable, type Row as WatchlistRow } from "@/lib/rows";
 
 /**
  * The watchlist itself: one row per ticker, ordered exactly as the learner wrote them in
  * src/lib/watchlist.ts. Deliberately not sorted by movement — a tool that reorders itself
  * by "biggest mover" is making a suggestion, and this one has no opinion.
  */
-export function Watchlist({ rows }: { rows: Quote[] }) {
+export function Watchlist({ rows }: { rows: WatchlistRow[] }) {
   return (
     <table className="w-full border-collapse text-sm tabular-nums">
       <caption className="sr-only">
@@ -28,9 +29,13 @@ export function Watchlist({ rows }: { rows: Quote[] }) {
         </tr>
       </thead>
       <tbody>
-        {rows.map((q) => (
-          <Row key={q.code} quote={q} />
-        ))}
+        {rows.map((r) =>
+          isAvailable(r) ? (
+            <Row key={r.code} quote={r} />
+          ) : (
+            <UnavailableRow key={r.code} code={r.code} />
+          ),
+        )}
       </tbody>
     </table>
   );
@@ -69,7 +74,29 @@ function Row({ quote }: { quote: Quote }) {
         </span>
       </td>
       <td className="hidden py-2.5 text-right text-zinc-500 dark:text-zinc-400 sm:table-cell">
-        {quote.volume.toLocaleString("en-US")}
+        {quote.volume === null ? "—" : quote.volume.toLocaleString("en-US")}
+      </td>
+    </tr>
+  );
+}
+
+/**
+ * A ticker the API answered for with no prices: not a symbol it knows, or not one this
+ * plan covers. It keeps its place in the list so the gap is visible, instead of the row
+ * quietly disappearing.
+ */
+function UnavailableRow({ code }: { code: string }) {
+  return (
+    <tr className="border-b border-zinc-100 last:border-0 dark:border-zinc-900">
+      <th
+        scope="row"
+        className="py-2.5 text-left font-medium text-zinc-900 dark:text-zinc-100"
+      >
+        {code}
+      </th>
+      <td colSpan={3} className="py-2.5 text-right text-zinc-500 dark:text-zinc-400">
+        Unavailable: no prices for this symbol. Check the ticker, or whether
+        your plan covers its exchange.
       </td>
     </tr>
   );

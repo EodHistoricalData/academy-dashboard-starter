@@ -1,6 +1,7 @@
 import { estimateCalls } from "@/lib/cost";
 import { eodhdFetch } from "@/lib/eodhd";
 import { type Failure, failureFromStatus } from "@/lib/failure";
+import { isAvailable, type Row, toRows } from "@/lib/rows";
 
 /** One row of the watchlist, as the API gives it. */
 export type Quote = {
@@ -11,7 +12,8 @@ export type Quote = {
   previousClose: number;
   change: number;
   change_p: number;
-  volume: number;
+  /** Null when the answer carried none, or "NA". */
+  volume: number | null;
 };
 
 /** What the account is allowed to do, read from the account itself rather than assumed. */
@@ -20,8 +22,6 @@ export type Account = {
   used: number | null;
   dailyLimit: number | null;
 };
-
-type RawQuote = Partial<Quote> & { code?: string };
 
 /**
  * The one request that fetches the whole watchlist: the first ticker in the path, the
@@ -49,7 +49,7 @@ export function pageLoadCalls(tickers: string[]): number {
 }
 
 /** The rows, or the reason there are none. */
-export type QuotesResult = { rows: Quote[] } | { failure: Failure };
+export type QuotesResult = { rows: Row[] } | { failure: Failure };
 
 /**
  * Quotes for the whole watchlist in ONE request — which is still one call per ticker.
@@ -59,8 +59,8 @@ export type QuotesResult = { rows: Quote[] } | { failure: Failure };
  * present. Code that assumes an array works with two tickers on the list and breaks the
  * day someone trims it to one.
  *
- * "NA" comes back in the numeric fields when a market has never traded that symbol, so
- * every field is checked rather than trusted.
+ * "NA" comes back in the numeric fields when a market has never traded that symbol. That
+ * row stays on the list, marked unavailable: see toRows in src/lib/rows.ts.
  *
  * The status is checked before the body is parsed: a 402 and a 401 both arrive with a body,
  * and the status is the only part that says which of them this is.
@@ -77,23 +77,11 @@ export async function quotes(tickers: string[]): Promise<QuotesResult> {
       };
     }
 
-    const body: unknown = await res.json();
-    const rows: RawQuote[] = Array.isArray(body) ? body : [body as RawQuote];
-    return { rows: rows.filter(isQuote) };
+    return { rows: toRows(await res.json()) };
   } catch {
     // Network error, the 15-second timeout in eodhdFetch, or a body that is not JSON.
     return { failure: { kind: "unreachable", status: null } };
   }
-}
-
-function isQuote(row: RawQuote): row is Quote {
-  return (
-    typeof row.code === "string" &&
-    typeof row.close === "number" &&
-    typeof row.change === "number" &&
-    typeof row.change_p === "number" &&
-    typeof row.timestamp === "number"
-  );
 }
 
 /** Plan and today's call count, straight from the account. */
@@ -123,9 +111,10 @@ export async function account(): Promise<Account | null> {
  * name is a claim and the timestamp is the evidence. This is what the freshness panel
  * reports, and it is why that panel is honest instead of a pitch.
  */
-export function ageMinutes(rows: Quote[], now: number = Date.now()): number | null {
-  if (rows.length === 0) return null;
-  const newest = Math.max(...rows.map((r) => r.timestamp));
+export function ageMinutes(rows: Row[], now: number = Date.now()): number | null {
+  const priced = rows.filter(isAvailable);
+  if (priced.length === 0) return null;
+  const newest = Math.max(...priced.map((r) => r.timestamp));
   if (!Number.isFinite(newest)) return null;
   return Math.max(0, Math.round((now - newest * 1000) / 60_000));
 }

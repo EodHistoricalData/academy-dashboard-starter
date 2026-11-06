@@ -143,6 +143,10 @@ The prompts the course uses are in [`prompts/`](prompts/).
 
 The hooks are a seatbelt, not a lock: they cannot see a key you never staged, and they cannot see one already in your history. If a key does reach a public repo, rotate it. Removing the commit is not enough.
 
+## Limitations
+
+The price alert (`npm run alert`, scheduled by `.github/workflows/alert.yml`) checks end-of-day closes against the thresholds in `alerts/rules.json` once each weekday at 17:30 New York time, with a catch-up run at 20:30, so it reports a crossing after the close and can never tell you about a move while the market is open.
+
 ## Licence and data use
 
 The **code** here is MIT. Fork it, change it, ship it.

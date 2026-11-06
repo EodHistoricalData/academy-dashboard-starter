@@ -174,3 +174,24 @@ the winner once.
 Prediction, written before the out-of-sample run: the in-sample winner will beat the
 20/50 defaults in-sample, and out-of-sample it will make between −2% and +3% net,
 below buy and hold on the same stretch.
+
+Result: in-sample (to 2026-07-15) the winner was 20/40 at +14.03% net, against +6.61% for
+the 20/50 defaults on the same stretch. Run once out-of-sample (2026-07-16 to 2026-10-30):
+**+0.46% net**, against +2.39% for buy and hold. Inside the prediction. Fifteen sets were
+tried in-sample, and the report says so.
+
+The defaults' longest time under water: 91 trading days, 2026-03-24 to 2026-08-03. Would I
+have kept running the rule through four months below its peak, while buy and hold was
+making new highs? Probably not, which is a result in itself.
+
+### The history wall, in my numbers
+
+```
+History available:   2025-10-31 to 2026-10-30   (251 bars, the fixture's year;
+                     the free plan reaches back one year)
+Regimes in sample:   one year: a rally, a spring drawdown of about 9%, a recovery
+Regimes NOT tested:  2008, 2020, 2022, every rate cycle before 2025
+```
+
+The "everything against 2015-onward" comparison cannot be run here: all of it is after
+2015. The drawdown and time under water above describe this year, not the rule.

@@ -4,6 +4,7 @@ import { CallFailed, Code, MockMode, NoKey } from "@/components/Notices";
 import { WallMeter } from "@/components/WallMeter";
 import { buyAndHold } from "@/lib/backtest/baseline";
 import { type Bar, loadCandles } from "@/lib/backtest/candles";
+import { SYMBOL } from "@/lib/backtest/config";
 import {
   backtest,
   costShare,
@@ -12,9 +13,15 @@ import {
   type Params,
 } from "@/lib/backtest/engine";
 import { shuffled } from "@/lib/backtest/honesty";
-import { maxDrawdown, totalReturn } from "@/lib/backtest/metrics";
+import {
+  maxDrawdown,
+  returnOverDrawdown,
+  timeUnderWater,
+  totalReturn,
+} from "@/lib/backtest/metrics";
 import { neighbours, paramsFrom } from "@/lib/backtest/params";
 import { appendRun, paramSetsTried, readRuns } from "@/lib/backtest/runlog";
+import { outOfSample, splitIndex, tune } from "@/lib/backtest/walkforward";
 import { estimateCalls } from "@/lib/cost";
 import { hasKey, isMock } from "@/lib/eodhd";
 import { signedPercent } from "@/lib/format";
@@ -23,8 +30,6 @@ import { account } from "@/lib/quotes";
 export const dynamic = "force-dynamic";
 
 export const metadata = { title: "Backtest · Market tool starter" };
-
-const SYMBOL = "SPY.US";
 
 export default async function BacktestPage({
   searchParams,
@@ -127,6 +132,10 @@ function Results({
   const charge = `${params.costBps} bps + ${params.slippageBps} bps slippage a trade`;
   const first = run.dates[0];
   const last = run.dates[run.dates.length - 1];
+  const water = timeUnderWater(run.net);
+  const reportHref = `/backtest/report?${new URLSearchParams(
+    Object.entries(params).map(([k, v]) => [k, String(v)]),
+  )}`;
 
   return (
     <section className="flex flex-col gap-8">
@@ -156,6 +165,15 @@ function Results({
       <EquityChart
         dates={run.dates}
         caption={`Strategy and buy and hold on ${SYMBOL}, ${first} to ${last}.`}
+        band={
+          water.bars > 0
+            ? {
+                from: water.from,
+                to: water.to,
+                label: `Strategy’s longest time under water: ${run.dates[water.from]} to ${run.dates[water.to]}, ${water.bars} bars${water.recovered ? "" : ", not recovered"}`,
+              }
+            : undefined
+        }
         series={[
           {
             label: "Strategy, gross",
@@ -187,6 +205,8 @@ function Results({
             <th className="py-2 text-right font-medium">Time in market</th>
             <th className="py-2 text-right font-medium">Trades</th>
             <th className="py-2 text-right font-medium">Max drawdown</th>
+            <th className="py-2 text-right font-medium">Under water</th>
+            <th className="py-2 text-right font-medium">Return / DD</th>
           </tr>
         </thead>
         <tbody>
@@ -198,6 +218,8 @@ function Results({
             <td className="py-2 text-right">{(run.timeInMarket * 100).toFixed(0)}%</td>
             <td className="py-2 text-right">{run.trades.length}</td>
             <td className="py-2 text-right">{pct(maxDrawdown(run.net))}</td>
+            <td className="py-2 text-right">{water.bars} bars</td>
+            <td className="py-2 text-right">{ratio(returnOverDrawdown(run.net))}</td>
           </tr>
           <tr>
             <th scope="row" className="py-2 text-left font-medium">
@@ -207,11 +229,27 @@ function Results({
             <td className="py-2 text-right">100%</td>
             <td className="py-2 text-right">{control.trades}</td>
             <td className="py-2 text-right">{pct(maxDrawdown(control.net))}</td>
+            <td className="py-2 text-right">
+              {timeUnderWater(control.net).bars} bars
+            </td>
+            <td className="py-2 text-right">
+              {ratio(returnOverDrawdown(control.net))}
+            </td>
           </tr>
         </tbody>
       </table>
 
+      <p className="text-xs text-zinc-500 dark:text-zinc-400">
+        Drawdown is measured from the running peak on every bar; time under
+        water is the longest stretch below a prior peak, in trading days.
+        Return over drawdown is a crude units-of-pain figure, not a Sharpe
+        ratio. <a href={reportHref} className="underline underline-offset-2">Download the report</a>{" "}
+        for this run, generated from it.
+      </p>
+
       <Costs bars={bars} params={params} />
+
+      <Split bars={bars} params={params} />
 
       <div className="flex flex-col gap-2">
         <h2 className="text-xs font-medium uppercase tracking-wide text-zinc-500 dark:text-zinc-400">
@@ -364,6 +402,36 @@ function Shuffle({ bars, params }: { bars: Bar[]; params: Params }) {
       <Code>tests/honesty.test.ts</Code> do that.
     </p>
   );
+}
+
+/** In-sample tuning, then one out-of-sample run with the winner. */
+function Split({ bars, params }: { bars: Bar[]; params: Params }) {
+  const split = splitIndex(bars);
+  const { best, tried } = tune(bars, split, params);
+  const inSample = totalReturn(backtest(bars.slice(0, split), best).net);
+  const oos = totalReturn(outOfSample(bars, best, split).net);
+  return (
+    <div className="flex flex-col gap-2 text-sm">
+      <h2 className="text-xs font-medium uppercase tracking-wide text-zinc-500 dark:text-zinc-400">
+        In-sample, then out-of-sample once
+      </h2>
+      <p>
+        Tuned on {bars[0].date} to {bars[split - 1].date}: {tried.length}{" "}
+        parameter sets, best {best.fast}/{best.slow} at {pct(inSample)} net. Run
+        once on {bars[split].date} to {bars[bars.length - 1].date}:{" "}
+        {pct(oos)} net.
+      </p>
+      <p className="text-xs text-zinc-500 dark:text-zinc-400">
+        Out-of-sample is expected to be worse. Near-identical numbers would be a
+        leak until proven otherwise. One year holds one split; walking forward
+        over several needs more history than this plan reaches.
+      </p>
+    </div>
+  );
+}
+
+function ratio(v: number | null): string {
+  return v === null ? "—" : v.toFixed(2);
 }
 
 function pct(fraction: number): string {

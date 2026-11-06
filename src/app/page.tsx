@@ -1,7 +1,8 @@
 import { Alerts } from "@/components/Alerts";
 import { Freshness } from "@/components/Freshness";
+import { NotesProvider, NotesStatus } from "@/components/NoteField";
 import { SortedWatchlist } from "@/components/SortedWatchlist";
-import { CallFailed, Code, MockMode, NoKey } from "@/components/Notices";
+import { CallFailed, Code, MockMode, NoKey, UserLine } from "@/components/Notices";
 import { WallMeter } from "@/components/WallMeter";
 import { hasKey, isMock } from "@/lib/eodhd";
 import { account, ageMinutes, pageLoadCalls, quotes } from "@/lib/quotes";
@@ -9,6 +10,8 @@ import { isAvailable } from "@/lib/rows";
 import { Nav } from "@/components/Nav";
 import { removeFromWatchlist } from "@/app/watchlist-actions";
 import { myTickers } from "@/lib/my-tickers";
+import { getDoc } from "@/lib/store";
+import { currentUser } from "@/lib/user";
 import { firedAlerts, RULES } from "@/lib/rules";
 
 // Server-rendered on every request, never prerendered: a page built at deploy time would
@@ -19,6 +22,8 @@ export default async function Home() {
   const mock = isMock();
   // The file's tickers, plus any added from the screen.
   const { list, added } = await myTickers();
+  const user = await currentUser();
+  const notes = user ? getDoc(user.id, "notes") : null;
 
   // Two independent requests, so they go together rather than one waiting on the other.
   // quotes() checks for the key itself and sends nothing without one.
@@ -62,7 +67,14 @@ export default async function Home() {
         )}
 
         {rows !== null && rows.length > 0 && (
-          <SortedWatchlist rows={rows} order={list} />
+          <NotesProvider initial={notes} signedIn={user !== null}>
+            <SortedWatchlist rows={rows} order={list} />
+            <NotesStatus />
+          </NotesProvider>
+        )}
+
+        {rows !== null && rows.length > 0 && (
+          <UserLine user={user} />
         )}
 
         {added.length > 0 && (

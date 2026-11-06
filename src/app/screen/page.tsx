@@ -1,6 +1,7 @@
 import { DataTable } from "@/components/DataTable";
 import { Code, CallFailed, MockMode, NoKey } from "@/components/Notices";
 import { SavedScreens } from "@/components/SavedScreens";
+import { ShortlistPanel } from "@/components/Shortlist";
 import { ScreenForm } from "@/components/ScreenForm";
 import { WallMeter } from "@/components/WallMeter";
 import { hasKey, isMock } from "@/lib/eodhd";
@@ -59,7 +60,10 @@ export default async function ScreenPage({
 
         <ScreenForm key={`${query.f}|${sort}`} filters={filters} sort={sort} />
 
-        <SavedScreens filters={filters} sort={sort} />
+        <div className="grid gap-8 sm:grid-cols-2">
+          <SavedScreens filters={filters} sort={sort} />
+          <ShortlistPanel />
+        </div>
 
         {dropped.length > 0 && (
           <p className="text-sm text-amber-900 dark:text-amber-200">

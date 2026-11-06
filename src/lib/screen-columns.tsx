@@ -1,4 +1,5 @@
 import type { Column } from "@/components/DataTable";
+import { ShortlistCell } from "@/components/Shortlist";
 import { asPercent, compact, signedPercent } from "@/lib/format";
 import type { ScreenRow } from "@/lib/screens";
 
@@ -50,4 +51,10 @@ export const SCREEN_COLUMNS: Column<ScreenRow>[] = [
     render: (r) => (r.dividend_yield === null ? null : asPercent(r.dividend_yield)),
   },
   { key: "sector", label: "Sector", render: (r) => r.sector },
+  {
+    key: "shortlist",
+    label: "",
+    render: () => null,
+    input: (r) => <ShortlistCell code={r.code} />,
+  },
 ];

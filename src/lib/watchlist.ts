@@ -15,10 +15,4 @@
  * call PER TICKER: five tickers are five calls on every page load. On the free plan's 20
  * calls a day, length and reloads both count. The page shows what one load costs.
  */
-export const WATCHLIST: string[] = [
-  "AAPL.US",
-  "MSFT.US",
-  "NVDA.US",
-  "SPY.US",
-  "BTC-USD.CC",
-];
+export const WATCHLIST: string[] = ["AAPL.US", "MSFT.US", "SPY.US"];

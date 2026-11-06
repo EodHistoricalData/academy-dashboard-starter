@@ -1,0 +1,17 @@
+#!/usr/bin/env sh
+# Runs before every push: the same gates CI runs on a pull request, so a red CI is news
+# rather than a routine. Turned on by `npm install` (package.json "prepare").
+#
+# The leak check is a full production build, so this takes a minute. That is the price of
+# not finding out from CI, or from a scraped key.
+
+set -eu
+
+echo "pre-push: tests"
+npm test --silent
+
+echo "pre-push: type check"
+npm run typecheck --silent
+
+echo "pre-push: leak check"
+npm run check:leak --silent

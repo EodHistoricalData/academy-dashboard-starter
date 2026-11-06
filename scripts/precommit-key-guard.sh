@@ -5,8 +5,8 @@
 # no example of one written out below: the first version of this file carried a sample key
 # in a comment, and the guard then blocked the repository's own first commit, on itself.
 #
-# Install once:
-#   cp scripts/precommit-key-guard.sh .git/hooks/pre-commit && chmod +x .git/hooks/pre-commit
+# Runs from .githooks/pre-commit, which `npm install` turns on (package.json "prepare"
+# sets core.hooksPath). Nothing to copy.
 #
 # This is a seatbelt, not a lock. It cannot see a key you never staged, and it cannot see
 # one already in your history. Keys belong in .env.local, which is gitignored.

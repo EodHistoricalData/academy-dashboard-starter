@@ -177,3 +177,13 @@ export function UserLine({
   );
 }
 
+/** The store could not be read: what is shown is a default, and changes may not be kept. */
+export function StoreNotice({ error }: { error: string | null }) {
+  if (!error) return null;
+  return (
+    <p className="rounded border border-amber-300 bg-amber-50 p-3 text-sm text-amber-900 dark:border-amber-900/60 dark:bg-amber-950/30 dark:text-amber-200">
+      {error} What you see uses defaults; changes may not be kept until it answers.
+    </p>
+  );
+}
+

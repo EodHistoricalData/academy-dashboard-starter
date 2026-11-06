@@ -1,10 +1,10 @@
 import { Cockpit } from "@/components/Cockpit";
 import { Nav } from "@/components/Nav";
-import { MockMode, UserLine } from "@/components/Notices";
+import { MockMode, StoreNotice, UserLine } from "@/components/Notices";
 import { isMock } from "@/lib/eodhd";
 import { layoutsFrom, resolveLayout } from "@/lib/layouts";
 import { notesFrom } from "@/lib/notes";
-import { getDoc } from "@/lib/store";
+import { readDoc } from "@/lib/store";
 import { currentUser } from "@/lib/user";
 import { rulesFor } from "@/lib/user-rules";
 
@@ -23,10 +23,12 @@ export default async function DashboardPage({
 }) {
   const query = await searchParams;
   const user = await currentUser();
-  const stored = user ? getDoc(user.id, "layouts") : null;
+  const layoutsRead = user ? readDoc(user.id, "layouts") : { doc: null, error: null };
+  const stored = layoutsRead.doc;
   const layouts = layoutsFrom(stored?.payload ?? null);
   const asked = typeof query.layout === "string" ? query.layout : null;
-  const notes = notesFrom(user ? getDoc(user.id, "notes")?.payload : null);
+  const notesRead = user ? readDoc(user.id, "notes") : { doc: null, error: null };
+  const notes = notesFrom(notesRead.doc?.payload ?? null);
   const rules = rulesFor(user);
   return (
     <div className="min-h-screen bg-zinc-50 px-6 py-10 font-sans text-zinc-900 dark:bg-zinc-950 dark:text-zinc-100 sm:py-14">
@@ -41,6 +43,7 @@ export default async function DashboardPage({
         </header>
         {isMock() && <MockMode />}
         <UserLine user={user} />
+        <StoreNotice error={layoutsRead.error ?? notesRead.error ?? rules.error} />
         <Cockpit
           initialLayouts={layouts}
           initialName={resolveLayout(layouts, asked).name}

@@ -2,7 +2,14 @@ import { Alerts } from "@/components/Alerts";
 import { Freshness } from "@/components/Freshness";
 import { NotesProvider, NotesStatus } from "@/components/NoteField";
 import { SortedWatchlist } from "@/components/SortedWatchlist";
-import { CallFailed, Code, MockMode, NoKey, UserLine } from "@/components/Notices";
+import {
+  CallFailed,
+  Code,
+  MockMode,
+  NoKey,
+  StoreNotice,
+  UserLine,
+} from "@/components/Notices";
 import { WallMeter } from "@/components/WallMeter";
 import { hasKey, isMock } from "@/lib/eodhd";
 import { oldestTimestamp } from "@/lib/market-store";
@@ -10,7 +17,7 @@ import { account, pageLoadCalls, quotes } from "@/lib/quotes";
 import { Nav } from "@/components/Nav";
 import { removeFromWatchlist } from "@/app/watchlist-actions";
 import { myTickers } from "@/lib/my-tickers";
-import { getDoc } from "@/lib/store";
+import { readDoc } from "@/lib/store";
 import { currentUser } from "@/lib/user";
 import { rulesFor } from "@/lib/user-rules";
 import { firedAlerts } from "@/lib/rules";
@@ -24,8 +31,9 @@ export default async function Home() {
   // The file's tickers, plus any added from the screen.
   const { list, added } = await myTickers();
   const user = await currentUser();
-  const notes = user ? getDoc(user.id, "notes") : null;
-  const { rules } = rulesFor(user);
+  const notesRead = user ? readDoc(user.id, "notes") : { doc: null, error: null };
+  const notes = notesRead.doc;
+  const { rules, error: rulesError } = rulesFor(user);
 
   // Two independent requests, so they go together rather than one waiting on the other.
   // quotes() checks for the key itself and sends nothing without one.
@@ -53,6 +61,8 @@ export default async function Home() {
         </header>
 
         {mock && <MockMode />}
+
+        <StoreNotice error={notesRead.error ?? rulesError} />
 
         {failure?.kind === "no-key" && <NoKey />}
 

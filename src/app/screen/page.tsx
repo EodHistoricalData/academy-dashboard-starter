@@ -5,6 +5,7 @@ import {
   Code,
   MockMode,
   NoKey,
+  StoreNotice,
   UserLine,
 } from "@/components/Notices";
 import { SavedScreens } from "@/components/SavedScreens";
@@ -14,7 +15,7 @@ import { WallMeter } from "@/components/WallMeter";
 import { hasKey, isMock } from "@/lib/eodhd";
 import { account } from "@/lib/quotes";
 import { myTickers } from "@/lib/my-tickers";
-import { getDoc } from "@/lib/store";
+import { readDoc } from "@/lib/store";
 import { currentUser } from "@/lib/user";
 import {
   SCREEN_COLUMNS,
@@ -54,8 +55,11 @@ export default async function ScreenPage({
   const mock = isMock();
   const { list: watching } = await myTickers();
   const user = await currentUser();
-  const savedScreens = user ? getDoc(user.id, "saved-screens") : null;
-  const shortlist = user ? getDoc(user.id, "shortlist") : null;
+  const none = { doc: null, error: null };
+  const screensRead = user ? readDoc(user.id, "saved-screens") : none;
+  const shortlistRead = user ? readDoc(user.id, "shortlist") : none;
+  const savedScreens = screensRead.doc;
+  const shortlist = shortlistRead.doc;
   const [result, plan] = await Promise.all([
     screen(current),
     mock || hasKey() ? account() : Promise.resolve(null),
@@ -80,6 +84,7 @@ export default async function ScreenPage({
         <ScreenForm key={`${query.f}|${sort}`} filters={filters} sort={sort} />
 
         <UserLine user={user} />
+        <StoreNotice error={screensRead.error ?? shortlistRead.error} />
 
         {/* One shortlist document for the panel and the cells in the table. */}
         <ShortlistProvider initial={shortlist} signedIn={user !== null}>

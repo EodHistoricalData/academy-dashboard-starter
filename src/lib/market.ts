@@ -12,8 +12,9 @@ import { type Failure, failureFromStatus } from "@/lib/failure";
  */
 export type MarketResult<T> =
   | { ok: true; value: T }
-  /** `body` is the parsed answer when there was one: some endpoints say what went wrong
-   *  in it (the screener names the filter it refused). */
+  /** `body` is the answer when there was one, parsed if it was JSON and as text if not:
+   *  some endpoints say what went wrong in it (the screener names the filter it refused,
+   *  /eod says "Ticker Not Found."). */
   | { ok: false; failure: Failure; body: unknown };
 
 export async function marketGet<T>(
@@ -33,7 +34,7 @@ export async function marketGet<T>(
       return {
         ok: false,
         failure: failureFromStatus(res.status, res.headers.get("retry-after")),
-        body: await res.json().catch(() => null),
+        body: await readBody(res),
       };
     }
     return { ok: true, value: narrow(await res.json()) };
@@ -46,3 +47,18 @@ export async function marketGet<T>(
     };
   }
 }
+
+/**
+ * An error body as data: parsed JSON when it is JSON, the text when it is not. Some answers
+ * are plain text — an unknown ticker on /eod is `Ticker Not Found.` with a 404 — and
+ * calling res.json() on those throws before anyone learns what was wrong.
+ */
+async function readBody(res: Response): Promise<unknown> {
+  const text = await res.text().catch(() => "");
+  try {
+    return JSON.parse(text);
+  } catch {
+    return text.trim() || null;
+  }
+}
+

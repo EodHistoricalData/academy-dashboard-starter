@@ -8,6 +8,7 @@ the same code that reads the real thing.
 |---|---|
 | `real-time.json` | `real-time/...` for the default watchlist. A ticker not in the file comes back with every field `"NA"`, the way EODHD answers for a symbol it has never seen traded. |
 | `eod/AAPL.US.json` | `eod/AAPL.US`, ten daily bars. `filter=last_close` gives the last close. |
+| `eod/NVDA.US.json` | `eod/NVDA.US`, ten daily bars whose last two closes cross 185, so the alert in `alerts/rules.json` fires once in mock mode. |
 | `fundamentals/AAPL.US.json` | `fundamentals/AAPL.US`, a few sections of the real document. `filter=General::Name` works. |
 | `user.json` | Your plan and today's count, for the meter on the page. |
 

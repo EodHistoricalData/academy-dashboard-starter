@@ -1,0 +1,5 @@
+[
+  { "id": "aapl-above-260", "symbol": "AAPL.US", "op": "crosses_above", "value": 260 },
+  { "id": "aapl-below-240", "symbol": "AAPL.US", "op": "crosses_below", "value": 240 },
+  { "id": "nvda-above-185", "symbol": "NVDA.US", "op": "crosses_above", "value": 185 }
+]

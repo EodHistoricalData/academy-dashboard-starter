@@ -18,8 +18,6 @@ import { eodhdFetch, isMock, redactKey } from "@/lib/eodhd";
 // Enough calendar days for two trading days, across a weekend and a holiday or two.
 const DAYS_BACK = 10;
 
-const NEW_YORK_DATE = new Intl.DateTimeFormat("en-CA", { timeZone: "America/New_York" });
-
 async function main(now: Date): Promise<void> {
   // Before any fetch: a rule that cannot work, or a channel missing a variable, stops the
   // run here, naming the rule or the variable.
@@ -29,8 +27,6 @@ async function main(now: Date): Promise<void> {
   const stateFile = mock ? MOCK_STATE_FILE : STATE_FILE;
   const state = await loadState(stateFile);
 
-  // The trading day is New York's, not UTC's: at 20:30 there, UTC is already tomorrow.
-  const today = NEW_YORK_DATE.format(now);
   const from = new Date(now.getTime() - DAYS_BACK * 86_400_000).toISOString().slice(0, 10);
 
   const symbols = [...new Set(rules.map((r) => r.symbol))];
@@ -46,7 +42,7 @@ async function main(now: Date): Promise<void> {
   const result = await runAlerts({
     rules,
     state,
-    today,
+    now,
     save: (s) => saveState(stateFile, s),
     fetchBars: async (symbol) => {
       const res = await withRetry(

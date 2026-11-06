@@ -30,11 +30,12 @@ function harness(data: Record<string, Bar[] | Error>, failSends = 0) {
     sent.push({ message, key });
   });
   const saved: State[] = [];
-  const run = (state: State, today: string, rules: Rule[] = [nvda, aapl]) =>
+  // 17:30 in New York on the given date (EDT until 2026-11-01, EST after).
+  const run = (state: State, day: string, rules: Rule[] = [nvda, aapl]) =>
     runAlerts({
       rules,
       state,
-      today,
+      now: new Date(`${day}T17:30:00${day < "2026-11-01" ? "-04:00" : "-05:00"}`),
       fetchBars,
       send,
       save: async (s) => void saved.push(structuredClone(s)),
@@ -50,12 +51,12 @@ describe("an idempotent alert run", () => {
 
     await h.run(state, "2026-10-30");
     await h.run(state, "2026-10-30");
-    // And a run the next evening, before a new bar exists: it asks, finds nothing new.
-    await h.run(state, "2026-10-31");
+    // And a run on the next trading day, before a new bar exists: it asks, finds nothing new.
+    await h.run(state, "2026-11-02");
 
     expect(h.sent).toHaveLength(1);
     expect(h.sent[0].key).toBe("nvda-above-185:2026-10-30");
-    expect(h.fetchBars).toHaveBeenCalledTimes(4); // two symbols on the 30th, two on the 31st
+    expect(h.fetchBars).toHaveBeenCalledTimes(4); // two symbols on the 30th, two on the 2nd
     expect(state.keys["nvda-above-185:2026-10-30"]).toEqual({ status: "sent", sent: "2026-10-30" });
   });
 

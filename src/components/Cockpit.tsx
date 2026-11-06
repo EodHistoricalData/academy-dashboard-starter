@@ -30,6 +30,7 @@ import {
 import type { Notes } from "@/lib/notes";
 import { panelState } from "@/lib/panel-state";
 import { type Needs, type PanelData, type PanelDef, unionNeeds } from "@/lib/panels";
+import { type Rule, ruleSentence } from "@/lib/rules";
 import {
   eodViaProxy,
   failureOf,
@@ -97,6 +98,7 @@ export function Cockpit({
   initialVersion,
   signedIn,
   notes,
+  initialRules,
 }: {
   initialLayouts: SavedLayouts;
   /** The layout the address asked for, already resolved: unknown names open the default. */
@@ -104,7 +106,10 @@ export function Cockpit({
   initialVersion: number;
   signedIn: boolean;
   notes: Notes;
+  /** The "rules" document, or the seed until one is saved. */
+  initialRules: Rule[];
 }) {
+  const [rules] = useState(initialRules);
   // Named layouts are one document, all of them here: switching is state, not a request.
   const [layouts, setLayouts] = useState<SavedLayouts>(initialLayouts);
   const [name, setName] = useState(initialName);
@@ -345,6 +350,7 @@ export function Cockpit({
           Refresh
         </button>
       </div>
+      <RulesList rules={rules} />
       <div className="grid auto-rows-[minmax(8rem,auto)] grid-cols-1 gap-4 sm:grid-cols-4">
         {layout.panels.map((panel, i) => {
           const def = defOf(panel);
@@ -396,6 +402,26 @@ export function Cockpit({
         })}
       </div>
     </div>
+  );
+}
+
+/** Every rule, as the sentence of what it watches. */
+function RulesList({ rules }: { rules: Rule[] }) {
+  return (
+    <section className="flex flex-col gap-1 text-sm" aria-label="Rules">
+      <h2 className="text-xs font-medium uppercase tracking-wide text-zinc-500 dark:text-zinc-400">
+        Rules
+      </h2>
+      {rules.length === 0 ? (
+        <p className="text-zinc-600 dark:text-zinc-400">No rules yet.</p>
+      ) : (
+        <ul className="flex flex-col gap-0.5">
+          {rules.map((r) => (
+            <li key={r.id}>{ruleSentence(r)}</li>
+          ))}
+        </ul>
+      )}
+    </section>
   );
 }
 

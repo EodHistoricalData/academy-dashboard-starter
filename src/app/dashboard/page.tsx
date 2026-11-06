@@ -48,6 +48,7 @@ export default async function DashboardPage({
           signedIn={user !== null}
           notes={notes}
           initialRules={rules.rules}
+          rulesVersion={rules.version}
         />
       </main>
     </div>

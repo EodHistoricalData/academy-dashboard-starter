@@ -21,8 +21,14 @@ read about before the market opens.
 - A database. The list is a file in the repo.
 - Charts. Not even a sparkline yet.
 - Alerts that push to my phone.
-- A search box for adding tickers.
-- Not yet: notes on symbols (course 1, unit 3).
+- A search box for adding tickers. I find a ticker once with `/search` and paste it in.
+- Notes that sync between devices: they stay in this browser for now.
+
+## Added in unit 3
+
+- A sort I choose (as written, change %, volume) that survives a reload.
+- A note per ticker: why I am watching it. Kept in this browser, never in git.
+- One threshold rule, checked when the page loads and said to be checked only then.
 
 ## Done
 

@@ -1,0 +1,42 @@
+# Runs the end-of-day alert on a clock that is not your laptop.
+#
+# 17:30 in New York on weekdays: NYSE and NASDAQ close at 16:00 and their end-of-day bar is
+# ready within 15 minutes. The time zone is named, so the hour holds through both clock
+# changes: 21:30 UTC in summer, 22:30 UTC in winter. Off the hour on purpose: the start of
+# every hour is when GitHub delays, and sometimes drops, scheduled runs.
+#
+# A schedule runs only from the default branch, and a fork starts with Actions off: enable
+# them in the fork's Actions tab. Mock mode for now: no calls spent, no secrets needed.
+name: Alert
+
+on:
+  # Every weekday at 17:30 New York time, whatever UTC says.
+  schedule:
+    - cron: "30 17 * * 1-5"
+      timezone: "America/New_York"
+  # A "Run workflow" button, and `gh workflow run alert.yml`.
+  workflow_dispatch:
+
+# One alert run at a time. A second one waits for the first instead of cancelling it: a
+# run cut off halfway is the one that sends an alert twice, or never.
+concurrency:
+  group: alert
+  cancel-in-progress: false
+
+permissions:
+  contents: read
+
+jobs:
+  alert:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version-file: .nvmrc
+          cache: npm
+      - run: npm ci
+      - run: npm run alert
+        env:
+          EODHD_MOCK: "1"

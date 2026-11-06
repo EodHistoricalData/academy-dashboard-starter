@@ -28,7 +28,10 @@ async function main(now: Date): Promise<void> {
   const from = new Date(now.getTime() - DAYS_BACK * 86_400_000).toISOString().slice(0, 10);
   const bars = new Map<string, Bar[]>();
   for (const symbol of symbols) {
-    bars.set(symbol, await fetchBars(symbol, from, rules));
+    const series = await fetchBars(symbol, from, rules);
+    bars.set(symbol, series);
+    // The bar's date, not the run's: in a log, this is what says which day was judged.
+    console.log(`read ${symbol}: ${series.length} bars, newest ${series.at(-1)?.date ?? "none"}`);
   }
 
   for (const rule of rules) {

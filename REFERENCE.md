@@ -238,3 +238,23 @@ a choice to you, the section for that unit says which one we made. Yours can dif
 - Survivorship: the backtest runs on SPY alone and says so on the page and in `PLAN.md`,
   with the course's live and delisted counts. Counting the delisted list yourself is one
   request through the proxy; nothing in the tool needs it.
+
+## Backtest Strategies · unit 4: Robustness, and the Wall
+
+- Drawdown properly: `timeUnderWater` and `returnOverDrawdown` in
+  `src/lib/backtest/metrics.ts`, tested on a hand-worked series. The page prints max
+  drawdown, time under water and return over drawdown for both lines, and shades the
+  strategy's longest stretch under water on the chart.
+- In-sample, out-of-sample: `src/lib/backtest/split.ts` splits 70/30 by date, tunes a
+  15-pair grid on the first part only, and runs the winner once from the split (signals may
+  read earlier bars). A test changes the out-of-sample bars and asserts the choice does not
+  move. The prediction went into `PLAN.md` in its own commit before the run; the result
+  follows it. Walking forward over several folds is not built: one year holds one split.
+- The history wall: three lines in `PLAN.md`. The "everything against 2015-onward"
+  comparison does not apply to a one-year history and the plan says so.
+- The report: `/backtest/report` returns a Markdown file generated from the run
+  (`src/lib/backtest/report.ts`), with claim, parameters, data, assumptions, results against
+  the control, robustness (in- and out-of-sample, neighbours, parameter sets tried from the
+  run log), the leak checks run on that data (`honestyChecks`), and what was not tested. In
+  mock mode it says the prices are the fixture's. `tests/report.test.ts` checks its sections.
+- The checkpoint lesson asks for nothing new in the code.

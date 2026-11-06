@@ -21,6 +21,9 @@ export type Failure =
   | { kind: "quota" }
   /** 429: too many requests in one minute. Clears by itself. */
   | { kind: "rate-limit"; retryAfter: string | null }
+  /** 404: the thing asked for does not exist, usually a mistyped ticker. EODHD says so in
+   *  plain text ("Ticker Not Found."), which is kept as `detail`. */
+  | { kind: "not-found"; detail: string }
   /** The request did not get an answer we understand: network, timeout, a 5xx. */
   | { kind: "unreachable"; status: number | null };
 
@@ -28,9 +31,60 @@ export type Failure =
 export function failureFromStatus(
   status: number,
   retryAfter: string | null = null,
+  body = "",
 ): Failure {
   if (status === 401 || status === 403) return { kind: "rejected", status };
   if (status === 402) return { kind: "quota" };
   if (status === 429) return { kind: "rate-limit", retryAfter };
+  if (status === 404) {
+    return { kind: "not-found", detail: body.trim().slice(0, 200) || "Not found." };
+  }
   return { kind: "unreachable", status };
+}
+
+/**
+ * What happened, and what to do next, for each kind. Five situations that need five
+ * different actions; "something went wrong" over all of them tells nobody what to do.
+ */
+export function failureSentence(f: Failure): { what: string; next: string } {
+  switch (f.kind) {
+    case "no-key":
+      return {
+        what: "There is no API key on the server.",
+        next: "Put EODHD_API_KEY in .env.local and restart, or set EODHD_MOCK=1 to use the fixtures.",
+      };
+    case "rejected":
+      return f.status === 401
+        ? {
+            what: "EODHD rejected the key (401).",
+            next: "Check EODHD_API_KEY character by character: a revoked key and a mistyped one answer the same.",
+          }
+        : {
+            what: "Your plan does not cover this data (403).",
+            next: "Waiting will not help; only a plan that includes it will.",
+          };
+    case "quota":
+      return {
+        what: "You are out of API calls for today (402).",
+        next: "They reset at 00:00 UTC; asking again before then only fails. What is on screen stays, with its age.",
+      };
+    case "rate-limit":
+      return {
+        what: "Too many requests this minute (429).",
+        next: `It clears by itself: wait ${f.retryAfter ?? "60"} seconds, then retry.`,
+      };
+    case "not-found":
+      return {
+        what: `EODHD does not know what was asked for (404): ${f.detail}`,
+        next: "Check the ticker, including its exchange suffix.",
+      };
+    case "unreachable":
+      return {
+        what:
+          f.status === null
+            ? "EODHD did not answer in time."
+            : `EODHD answered ${f.status}, a fault on its side.`,
+        next: "That is upstream; retrying is reasonable.",
+      };
+  }
 }

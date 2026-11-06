@@ -119,6 +119,11 @@ function explain(failure: Exclude<Failure, { kind: "no-key" }>): {
           "Something is probably fetching in a loop.",
         ],
       };
+    case "not-found":
+      return {
+        title: "EODHD does not know what was asked for (404)",
+        steps: [failure.detail, "Check the ticker, including its exchange suffix."],
+      };
     case "unreachable":
       return {
         title:

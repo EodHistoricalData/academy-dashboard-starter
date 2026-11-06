@@ -40,6 +40,10 @@ describe("Clock cases", () => {
     expect(tradingDate(new Date("2026-01-15T01:00:00Z"))).toBe("2026-01-14");
   });
 
+  it("00:30 UTC on 2026-07-15, the 20:30 catch-up run in summer, is trading date 2026-07-14", () => {
+    expect(tradingDate(new Date("2026-07-15T00:30:00Z"))).toBe("2026-07-14");
+  });
+
   it("15:00 UTC on 2026-01-17 has no trading date, and the run fetches nothing", async () => {
     const saturday = new Date("2026-01-17T15:00:00Z");
     expect(tradingDate(saturday)).toBeNull();

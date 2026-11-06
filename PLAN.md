@@ -22,3 +22,4 @@ API has no idempotency key, so a run that dies between the two sends again next 
 - 15:00 UTC on 2026-01-17 has no trading date, and the run fetches nothing.
 - A run with every symbol already processed today spends 0 calls.
 - A 5xx is retried after 1 second and then 2; a 402 is not retried.
+- 00:30 UTC on 2026-07-15, the 20:30 catch-up run in summer, is trading date 2026-07-14.

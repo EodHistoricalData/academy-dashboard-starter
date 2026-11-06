@@ -1,4 +1,5 @@
 import { useRef, useState } from "react";
+import { putDocViaRoute } from "@/lib/doc-client";
 import { useStored, writeStored } from "@/lib/stored";
 
 /** A document as the server holds it, or null when it has none for this user. */
@@ -60,26 +61,18 @@ export function useDoc(opts: {
     newest.current = next;
     queue.current = queue.current.then(async () => {
       if (newest.current !== next) return; // a newer edit is queued behind this one
-      try {
-        const res = await fetch(`/api/store/${opts.docKey}`, {
-          method: "PUT",
-          headers: { "content-type": "application/json" },
-          body: JSON.stringify({ version: version.current, payload: next }),
-        });
-        if (res.status === 409) {
-          const body = (await res.json()) as { current?: ServerDoc };
-          if (body.current) {
-            version.current = body.current.version;
-            setServer(body.current);
-          }
-          setStatus("conflict");
-          return;
+      const outcome = await putDocViaRoute(opts.docKey, version.current, next);
+      if (outcome.kind === "conflict") {
+        if (outcome.current) {
+          version.current = outcome.current.version;
+          setServer(outcome.current);
         }
-        if (!res.ok) throw new Error(String(res.status));
-        version.current = ((await res.json()) as { version: number }).version;
-        if (newest.current === next) setStatus("saved");
-      } catch {
+        setStatus("conflict");
+      } else if (outcome.kind === "failed") {
         setStatus("failed");
+      } else {
+        version.current = outcome.version;
+        if (newest.current === next) setStatus("saved");
       }
     });
   }

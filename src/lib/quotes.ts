@@ -1,6 +1,7 @@
 import { estimateCalls } from "@/lib/cost";
-import { eodhdFetch, hasKey, isMock } from "@/lib/eodhd";
-import { type Failure, failureFromStatus } from "@/lib/failure";
+import { eodhdFetch } from "@/lib/eodhd";
+import type { Failure } from "@/lib/failure";
+import { marketGet } from "@/lib/market";
 import { isAvailable, type Row, toRows } from "@/lib/rows";
 
 /** One row of the watchlist, as the API gives it. */
@@ -68,21 +69,9 @@ export type QuotesResult = { rows: Row[] } | { failure: Failure };
 export async function quotes(tickers: string[]): Promise<QuotesResult> {
   const req = quotesRequest(tickers);
   if (req === null) return { rows: [] };
-  if (!isMock() && !hasKey()) return { failure: { kind: "no-key" } };
 
-  try {
-    const res = await eodhdFetch(req.path, req.params);
-    if (!res.ok) {
-      return {
-        failure: failureFromStatus(res.status, res.headers.get("retry-after")),
-      };
-    }
-
-    return { rows: toRows(await res.json()) };
-  } catch {
-    // Network error, the 15-second timeout in eodhdFetch, or a body that is not JSON.
-    return { failure: { kind: "unreachable", status: null } };
-  }
+  const result = await marketGet(req.path, req.params, toRows);
+  return result.ok ? { rows: result.value } : { failure: result.failure };
 }
 
 /** Plan and today's call count, straight from the account. */

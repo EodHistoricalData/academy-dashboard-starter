@@ -101,3 +101,27 @@ a choice to you, the section for that unit says which one we made. Yours can dif
 - In mock mode the screener answers from `fixtures/screener.json` whatever the filters; the
   misspelled-field exercise only shows its message live, or in the test.
 - Market caps are printed in full here. Unit 3's review finds that unreadable and fixes it.
+
+## Build a Screener · unit 2: Rebuild It
+
+- The data layer: `src/lib/market.ts` holds the transport (key check, `eodhdFetch`, status
+  before body, narrowing). `quotes()` kept its signature; the watchlist rendered
+  pixel-identical before and after. `tests/market.test.ts` pins what that screenshot showed
+  and no test covered: the unavailable 005930.KO row and the MSFT rule's sentence.
+- One table: `src/components/DataTable.tsx` with the lesson's `Column<T>`. Two additions,
+  both needed by the watchlist from course 1: `tone` (green and red, beside the sign) and
+  `input` (the note field, which is a control, not a string). On a phone the table now
+  scrolls sideways instead of hiding columns. The screener's columns are
+  `src/lib/screen-columns.ts`; the EPS column was added as the lesson's test, one entry in
+  that one file.
+- Filters as data: `src/lib/filters.ts` (fields, operators, sectors and sorts as fixed
+  lists, `safe`, `clampLimit`, the address form `f=field:op:value`). The proxy rebuilds any
+  `/screener` query from checked values and clamps `limit` (`tests/proxy.test.ts` has the
+  three attacks); the page checks the address the same way and names what it dropped. The
+  universe filter (`exchange = us`) is added by the code, never read from input.
+- Our choice: the lesson says both "clamp" and "refused" for `limit=100000`; the proxy clamps
+  it to 100 and the test checks what goes upstream.
+- Saved screens: `src/lib/saved-screens.ts` under `screens-v1`, keyed by name, criteria
+  only, and `src/components/SavedScreens.tsx`. A saved screen reopens as its address.
+- In mock mode the fixture does not screen: any filters or sort show the same twenty rows.
+  What the filters do is in the tests.

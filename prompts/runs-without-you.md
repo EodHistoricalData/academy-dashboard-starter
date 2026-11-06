@@ -49,7 +49,7 @@ Do not ask me for a token and do not read .env.local.
 
 ```
 Make the alert job idempotent. Plan first and list the failure cases you will test.
-- alerts/state.json: per symbol, the last processed bar date; per key "<rule id>:<bar date>", status pending or sent and the date sent. No prices.
+- alerts/state.json: per symbol, the last processed bar date; per key "<rule id>:<bar date>", status pending or sent and the date sent. No prices. Mock runs read and write alerts/state.mock.json instead, added to .gitignore, so fixture dates never reach the real state.
 - Mark pending, send, mark sent. Every run first resends keys still pending, before anything else; for email, the key is the Idempotency-Key header.
 - Then skip symbols already processed for today's New York trading date; if none is left, print "nothing new" and exit 0 with no calls. Evaluate every newer bar, oldest first.
 - src/lib/alerts/retry.ts, sleep passed in: 402 stops non-zero; 429 waits for Retry-After and retries once; 403 and 404 never retry and name the rule; 5xx and timeouts retry twice with a growing pause.
@@ -78,9 +78,9 @@ Run the new file, then the whole suite.
 
 ```
 Add a heartbeat to the alert job. Plan first.
-- scripts/alert.ts decides the outcome: ok, or failed with a one-line reason (402, stale data, delivery error, invalid rule). Stale means any symbol's newest bar is more than one weekday behind today's New York trading date. On failure, write the reason to alert-outcome.txt, print it, exit non-zero.
+- scripts/alert.ts decides the outcome: ok, or failed with a one-line reason (402, stale data, delivery error, invalid rule). Stale means any symbol's newest bar is more than one weekday behind today's New York trading date. In mock mode, skip the staleness check and print that it was skipped: the fixtures' dates are fixed. On failure, write the reason to alert-outcome.txt, print it, exit non-zero.
 - On a Friday trading date, also deliver a digest from alerts/state.json, with no extra fetch: rules, symbols, newest bar date, alerts sent this week.
-- Workflow, after the state step: on success, curl HEARTBEAT_URL; on failure, curl HEARTBEAT_URL/fail with alert-outcome.txt as the body; a ten-second timeout; HEARTBEAT_URL from secrets.
+- Workflow, after the state step: on success, curl HEARTBEAT_URL; on failure, curl HEARTBEAT_URL/fail with alert-outcome.txt as the body; a ten-second timeout; HEARTBEAT_URL from secrets. If HEARTBEAT_URL is not set, each step prints a warning and exits 0 without calling curl.
 - Tests with fixed instants: one weekday old is fine, two is stale, Friday sends the digest and Thursday does not.
 ```
 

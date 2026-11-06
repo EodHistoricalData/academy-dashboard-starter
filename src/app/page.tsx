@@ -1,7 +1,8 @@
 import { Freshness } from "@/components/Freshness";
 import { WallMeter } from "@/components/WallMeter";
 import { Watchlist } from "@/components/Watchlist";
-import { account, ageMinutes, quotes } from "@/lib/quotes";
+import { isMock } from "@/lib/eodhd";
+import { account, ageMinutes, pageLoadCalls, quotes } from "@/lib/quotes";
 import { WATCHLIST } from "@/lib/watchlist";
 
 // Server-rendered on every request, never prerendered: a page built at deploy time would
@@ -9,9 +10,10 @@ import { WATCHLIST } from "@/lib/watchlist";
 export const dynamic = "force-dynamic";
 
 export default async function Home() {
-  const hasKey = Boolean(process.env.EODHD_API_KEY);
+  const mock = isMock();
+  const hasKey = Boolean(process.env.EODHD_API_KEY) || mock;
 
-  // Two independent calls, so they go together rather than one waiting on the other.
+  // Two independent requests, so they go together rather than one waiting on the other.
   const [rows, plan] = await Promise.all([
     hasKey ? quotes(WATCHLIST) : Promise.resolve(null),
     hasKey ? account() : Promise.resolve(null),
@@ -29,6 +31,8 @@ export default async function Home() {
             Your tickers, your key, fetched on the server.
           </p>
         </header>
+
+        {mock && <MockMode />}
 
         {!hasKey && <NoKey />}
 
@@ -51,7 +55,11 @@ export default async function Home() {
         {rows !== null && rows.length > 0 && (
           <div className="grid gap-8 border-t border-zinc-200 pt-8 dark:border-zinc-800 sm:grid-cols-2">
             <Freshness ageMinutes={ageMinutes(rows)} asOf={asOf} />
-            <WallMeter account={plan} />
+            <WallMeter
+              account={plan}
+              pageCalls={pageLoadCalls(WATCHLIST)}
+              mock={mock}
+            />
           </div>
         )}
 
@@ -60,8 +68,8 @@ export default async function Home() {
             Edit <Code>src/lib/watchlist.ts</Code> for your tickers, and{" "}
             <Code>src/app/page.tsx</Code> for everything else. The key is read
             in exactly one place, <Code>src/lib/eodhd.ts</Code>, and never
-            reaches the browser. Every market call goes through{" "}
-            <Code>/api/proxy/*</Code>.
+            reaches the browser. Any market request you add in the browser
+            goes through <Code>/api/proxy/*</Code>.
           </p>
           <p className="text-xs text-zinc-500 dark:text-zinc-400">
             Educational starter. Not investment advice. Market data by EODHD.
@@ -99,6 +107,24 @@ function NoKey() {
       <p className="mt-3 text-amber-900 dark:text-amber-200">
         Deployed on Vercel? Set the same variable in the project&apos;s
         environment settings and redeploy.
+      </p>
+      <p className="mt-3 text-amber-900 dark:text-amber-200">
+        No key yet? Put <Code>EODHD_MOCK=1</Code> in <Code>.env.local</Code> to
+        see the page on sample data.
+      </p>
+    </section>
+  );
+}
+
+function MockMode() {
+  return (
+    // Said first and plainly: invented numbers that look live are worse than no numbers.
+    <section className="rounded-lg border border-zinc-300 bg-white p-4 text-sm dark:border-zinc-700 dark:bg-zinc-900">
+      <h2 className="font-semibold">Mock mode</h2>
+      <p className="mt-1 text-zinc-600 dark:text-zinc-400">
+        <Code>EODHD_MOCK</Code> is on. Everything below comes from the files in{" "}
+        <Code>fixtures/</Code>: invented numbers in EODHD’s format, not market
+        data. No API calls are spent. Remove the variable and restart to go live.
       </p>
     </section>
   );

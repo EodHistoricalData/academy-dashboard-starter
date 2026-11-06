@@ -1,0 +1,67 @@
+[
+  {
+    "code": "AAPL.US",
+    "timestamp": 1793390400,
+    "gmtoffset": 0,
+    "open": 249.1,
+    "high": 252.88,
+    "low": 247.95,
+    "close": 251.32,
+    "volume": 48211370,
+    "previousClose": 248.9,
+    "change": 2.42,
+    "change_p": 0.9723
+  },
+  {
+    "code": "MSFT.US",
+    "timestamp": 1793390400,
+    "gmtoffset": 0,
+    "open": 515.2,
+    "high": 517.04,
+    "low": 509.66,
+    "close": 512.4,
+    "volume": 19874520,
+    "previousClose": 515.85,
+    "change": -3.45,
+    "change_p": -0.6688
+  },
+  {
+    "code": "NVDA.US",
+    "timestamp": 1793390400,
+    "gmtoffset": 0,
+    "open": 183.05,
+    "high": 188.2,
+    "low": 182.44,
+    "close": 186.75,
+    "volume": 201557310,
+    "previousClose": 182.1,
+    "change": 4.65,
+    "change_p": 2.5535
+  },
+  {
+    "code": "SPY.US",
+    "timestamp": 1793390400,
+    "gmtoffset": 0,
+    "open": 666.1,
+    "high": 669.73,
+    "low": 664.02,
+    "close": 668.2,
+    "volume": 61230480,
+    "previousClose": 665.95,
+    "change": 2.25,
+    "change_p": 0.3379
+  },
+  {
+    "code": "BTC-USD.CC",
+    "timestamp": 1793402220,
+    "gmtoffset": 0,
+    "open": 109870.55,
+    "high": 110214.8,
+    "low": 107902.31,
+    "close": 108450.12,
+    "volume": 41873926144,
+    "previousClose": 109870.55,
+    "change": -1420.43,
+    "change_p": -1.2928
+  }
+]

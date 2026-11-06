@@ -5,8 +5,8 @@ import { SortedWatchlist } from "@/components/SortedWatchlist";
 import { CallFailed, Code, MockMode, NoKey, UserLine } from "@/components/Notices";
 import { WallMeter } from "@/components/WallMeter";
 import { hasKey, isMock } from "@/lib/eodhd";
-import { account, ageMinutes, pageLoadCalls, quotes } from "@/lib/quotes";
-import { isAvailable } from "@/lib/rows";
+import { oldestTimestamp } from "@/lib/market-store";
+import { account, pageLoadCalls, quotes } from "@/lib/quotes";
 import { Nav } from "@/components/Nav";
 import { removeFromWatchlist } from "@/app/watchlist-actions";
 import { myTickers } from "@/lib/my-tickers";
@@ -34,9 +34,8 @@ export default async function Home() {
   const rows = "rows" in result ? result.rows : null;
   const failure = "failure" in result ? result.failure : null;
 
-  const priced = rows?.filter(isAvailable) ?? [];
-  const asOf =
-    priced.length > 0 ? Math.max(...priced.map((r) => r.timestamp)) : null;
+  // The oldest quote, not the newest: the page is only as current as its stalest row.
+  const asOf = oldestTimestamp(rows ?? []);
 
   return (
     <div className="min-h-screen bg-zinc-50 px-6 py-10 font-sans text-zinc-900 dark:bg-zinc-950 dark:text-zinc-100 sm:py-14">
@@ -106,7 +105,7 @@ export default async function Home() {
         {((rows !== null && rows.length > 0) || failure?.kind === "quota") && (
           <div className="grid gap-8 border-t border-zinc-200 pt-8 dark:border-zinc-800 sm:grid-cols-2">
             {rows !== null && (
-              <Freshness ageMinutes={ageMinutes(rows)} asOf={asOf} />
+              <Freshness ageMinutes={minutesOld(asOf)} asOf={asOf} />
             )}
             <WallMeter
               account={plan}
@@ -132,3 +131,11 @@ export default async function Home() {
     </div>
   );
 }
+
+/** Minutes since a quote time in Unix seconds; the age the panel prints beside it. */
+function minutesOld(timestamp: number | null): number | null {
+  return timestamp === null
+    ? null
+    : Math.max(0, Math.round((Date.now() - timestamp * 1000) / 60_000));
+}
+

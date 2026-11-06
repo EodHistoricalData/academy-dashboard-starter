@@ -267,3 +267,38 @@ a choice to you, the section for that unit says which one we made. Yours can dif
   run log), the leak checks run on that data (`honestyChecks`), and what was not tested. In
   mock mode it says the prices are the fixture's. `tests/report.test.ts` checks its sections.
 - The checkpoint lesson asks for nothing new in the code.
+
+## Build a Dashboard · unit 1: Compose, and Decide Where State Lives
+
+- `PLAN.md`: the State section (every localStorage key, cookie and hand-edited constant,
+  placed panel-local, shared or persisted) and the Rebuild section for the cockpit.
+- The document store, our choice: `src/lib/store.ts` keeps one row per user per document
+  in SQLite through Node's built-in `node:sqlite` (`.data/app.db`, gitignored; tests use
+  `:memory:` through `STORE_FILE` in `vitest.config.mts`). A write carries the version it
+  read and is applied by one conditional `UPDATE`, so two writes arriving together cannot
+  both win; a stale one gets 409 "Your other tab is ahead". The lesson's JSON-file store
+  reads the whole file, awaits, and writes it back, which loses a write when two arrive at
+  once; this is the same API with that gap closed. `node:sqlite` needs Node 22.13 or later
+  without a flag, so `engines` and `@types/node` moved to 22; `.nvmrc` already said 22.
+- Sign-in, our choice: the starter had no users. One owner signs in at `/login` with
+  `DASHBOARD_PASSWORD`, compared in constant time; `SESSION_SECRET` signs an httpOnly
+  cookie with `node:crypto` (`src/lib/session.ts`). `src/lib/user.ts` is the one place the
+  current user comes from. In mock mode with no password, user 1 is assumed and the pages
+  say so. User ids are integers. The two variables are documented in the README; this
+  branch could not edit `.env.example` (see the report).
+- `src/app/api/store/[key]/route.ts`: GET 404 for a missing document, for a key not on the
+  list, and for another user's document; PUT 409 on a stale version. `tests/store.test.ts`
+  covers the store and the route as two users.
+- Step 1 of the migration, a commit each: saved screens, the shortlist, then the notes read
+  from the server and fall back to this browser's copy when the server has none; writes go
+  to both (`src/lib/use-doc.ts`). Writes go out one at a time with the version each got
+  back, so typing a note key by key never meets a 409. The sort order stays in this browser.
+- `src/lib/market-store.ts`: the lesson's store, tested with a fake fetcher. The home page's
+  time is now the oldest quote, and the age beside it follows it (one more expression than
+  the lesson names, or the panel would print an old time over a newer age).
+- `src/lib/layout.ts`: panel configs are a typed union, checked per type on read; an unknown
+  type or a failed check becomes a placeholder panel. `/dashboard` draws the default layout
+  (watchlist, one screen, the backtest) as a grid and fetches nothing.
+- Structure only: `src/lib/screen-query.ts` and `src/lib/backtest/bars.ts` hold the parts of
+  the screener and the backtest with no disk or network in them, so the browser can use
+  them in unit 2.

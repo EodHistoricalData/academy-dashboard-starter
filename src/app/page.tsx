@@ -1,6 +1,6 @@
 import { Freshness } from "@/components/Freshness";
+import { SortedWatchlist } from "@/components/SortedWatchlist";
 import { WallMeter } from "@/components/WallMeter";
-import { Watchlist } from "@/components/Watchlist";
 import { hasKey, isMock } from "@/lib/eodhd";
 import type { Failure } from "@/lib/failure";
 import { account, ageMinutes, pageLoadCalls, quotes } from "@/lib/quotes";
@@ -50,7 +50,9 @@ export default async function Home() {
         {/* No wrapping section with a hidden "Watchlist" heading: the h1 above already
             says it and the table carries its own caption, so that made three announcements
             of the same word for anyone listening. */}
-        {rows !== null && rows.length > 0 && <Watchlist rows={rows} />}
+        {rows !== null && rows.length > 0 && (
+          <SortedWatchlist rows={rows} order={WATCHLIST} />
+        )}
 
         {rows !== null && rows.length === 0 && (
           // Empty is a state the learner caused, so it names the file that caused it

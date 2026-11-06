@@ -2,6 +2,7 @@ import { Freshness } from "@/components/Freshness";
 import { WallMeter } from "@/components/WallMeter";
 import { Watchlist } from "@/components/Watchlist";
 import { isMock } from "@/lib/eodhd";
+import type { Failure } from "@/lib/failure";
 import { account, ageMinutes, pageLoadCalls, quotes } from "@/lib/quotes";
 import { WATCHLIST } from "@/lib/watchlist";
 
@@ -14,10 +15,12 @@ export default async function Home() {
   const hasKey = Boolean(process.env.EODHD_API_KEY) || mock;
 
   // Two independent requests, so they go together rather than one waiting on the other.
-  const [rows, plan] = await Promise.all([
+  const [result, plan] = await Promise.all([
     hasKey ? quotes(WATCHLIST) : Promise.resolve(null),
     hasKey ? account() : Promise.resolve(null),
   ]);
+  const rows = result && "rows" in result ? result.rows : null;
+  const failure = result && "failure" in result ? result.failure : null;
 
   const asOf =
     rows && rows.length > 0 ? Math.max(...rows.map((r) => r.timestamp)) : null;
@@ -38,7 +41,7 @@ export default async function Home() {
 
         {!hasKey && <NoKey />}
 
-        {hasKey && rows === null && <CallFailed />}
+        {failure && <CallFailed failure={failure} />}
 
         {/* No wrapping section with a hidden "Watchlist" heading: the h1 above already
             says it and the table carries its own caption, so that made three announcements
@@ -54,9 +57,13 @@ export default async function Home() {
           </p>
         )}
 
-        {rows !== null && rows.length > 0 && (
+        {/* Out of quota is the one failure where the meter is the explanation, so it
+            stays on screen beside the message. */}
+        {((rows !== null && rows.length > 0) || failure?.kind === "quota") && (
           <div className="grid gap-8 border-t border-zinc-200 pt-8 dark:border-zinc-800 sm:grid-cols-2">
-            <Freshness ageMinutes={ageMinutes(rows)} asOf={asOf} />
+            {rows !== null && (
+              <Freshness ageMinutes={ageMinutes(rows)} asOf={asOf} />
+            )}
             <WallMeter
               account={plan}
               pageCalls={pageLoadCalls(WATCHLIST)}
@@ -132,27 +139,81 @@ function MockMode() {
   );
 }
 
-function CallFailed() {
+function CallFailed({ failure }: { failure: Failure }) {
+  const { title, steps } = explain(failure);
   return (
-    // A key that is present but rejected, or a ticker that does not exist, must say so.
-    // A blank page here is the one outcome that teaches nothing.
+    // Each failure names itself and the next step. "Something went wrong" over all of
+    // them sends you looking in the wrong place for an hour.
     <section className="rounded-lg border border-zinc-300 bg-white p-4 text-sm dark:border-zinc-700 dark:bg-zinc-900">
-      <h2 className="font-semibold">
-        The key is set, but the call did not return data
-      </h2>
+      <h2 className="font-semibold">{title}</h2>
       <ul className="mt-2 list-disc space-y-1 pl-5 text-zinc-600 dark:text-zinc-400">
-        <li>Check the key is valid and has not been revoked.</li>
-        <li>
-          Check every ticker in <Code>src/lib/watchlist.ts</Code>. One bad
-          symbol is enough.
-        </li>
-        <li>
-          Check today&apos;s quota. Call <Code>/api/usage</Code> directly to see
-          it.
-        </li>
+        {steps.map((step, i) => (
+          <li key={i}>{step}</li>
+        ))}
       </ul>
     </section>
   );
+}
+
+function explain(failure: Failure): {
+  title: string;
+  steps: React.ReactNode[];
+} {
+  switch (failure.kind) {
+    case "rejected":
+      return failure.status === 401
+        ? {
+            title: "EODHD rejected the key (401)",
+            steps: [
+              "The API answers the same way for a revoked key and a mistyped one.",
+              <>
+                Check <Code>EODHD_API_KEY</Code> in <Code>.env.local</Code>{" "}
+                character by character, or in your host’s settings, then
+                restart.
+              </>,
+            ],
+          }
+        : {
+            title: "Your plan does not cover this request (403)",
+            steps: [
+              "The key works; one of the tickers is on an exchange or feed the plan does not include.",
+              <>
+                Remove tickers from <Code>src/lib/watchlist.ts</Code> one at a
+                time to find which.
+              </>,
+            ],
+          };
+    case "quota":
+      return {
+        title: "Today’s API calls are spent (402)",
+        steps: [
+          "Nothing is broken. The count resets at midnight GMT, and retrying before then only fails again.",
+          <>
+            Put <Code>EODHD_MOCK=1</Code> in <Code>.env.local</Code> to keep
+            working on fixtures meanwhile.
+          </>,
+        ],
+      };
+    case "rate-limit":
+      return {
+        title: "Too many requests in one minute (429)",
+        steps: [
+          `This clears by itself: wait ${failure.retryAfter ?? "60"} seconds and reload.`,
+          "Something is probably fetching in a loop.",
+        ],
+      };
+    case "unreachable":
+      return {
+        title:
+          failure.status === null
+            ? "Could not reach EODHD"
+            : `EODHD answered ${failure.status}`,
+        steps: [
+          "The request failed, timed out after 15 seconds, or came back in a shape the page does not read.",
+          "Check your connection and reload. If it persists, the API status is the next place to look.",
+        ],
+      };
+  }
 }
 
 function Code({ children }: { children: React.ReactNode }) {

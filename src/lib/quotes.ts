@@ -1,5 +1,6 @@
 import { estimateCalls } from "@/lib/cost";
 import { eodhdFetch } from "@/lib/eodhd";
+import { type Failure, failureFromStatus } from "@/lib/failure";
 
 /** One row of the watchlist, as the API gives it. */
 export type Quote = {
@@ -47,6 +48,9 @@ export function pageLoadCalls(tickers: string[]): number {
   return forQuotes + (estimateCalls("user") ?? 0);
 }
 
+/** The rows, or the reason there are none. */
+export type QuotesResult = { rows: Quote[] } | { failure: Failure };
+
 /**
  * Quotes for the whole watchlist in ONE request — which is still one call per ticker.
  *
@@ -57,20 +61,28 @@ export function pageLoadCalls(tickers: string[]): number {
  *
  * "NA" comes back in the numeric fields when a market has never traded that symbol, so
  * every field is checked rather than trusted.
+ *
+ * The status is checked before the body is parsed: a 402 and a 401 both arrive with a body,
+ * and the status is the only part that says which of them this is.
  */
-export async function quotes(tickers: string[]): Promise<Quote[] | null> {
+export async function quotes(tickers: string[]): Promise<QuotesResult> {
   const req = quotesRequest(tickers);
-  if (req === null) return [];
+  if (req === null) return { rows: [] };
 
   try {
     const res = await eodhdFetch(req.path, req.params);
-    if (!res.ok) return null;
+    if (!res.ok) {
+      return {
+        failure: failureFromStatus(res.status, res.headers.get("retry-after")),
+      };
+    }
 
     const body: unknown = await res.json();
     const rows: RawQuote[] = Array.isArray(body) ? body : [body as RawQuote];
-    return rows.filter(isQuote);
+    return { rows: rows.filter(isQuote) };
   } catch {
-    return null;
+    // Network error, the 15-second timeout in eodhdFetch, or a body that is not JSON.
+    return { failure: { kind: "unreachable", status: null } };
   }
 }
 

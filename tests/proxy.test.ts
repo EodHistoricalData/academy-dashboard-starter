@@ -224,8 +224,10 @@ describe("mock mode", () => {
   });
 
   it("feeds the page the whole default watchlist", async () => {
-    const rows = await quotes(WATCHLIST);
-    expect(rows?.map((r) => r.code)).toEqual(WATCHLIST);
+    const result = await quotes(WATCHLIST);
+    expect("rows" in result && result.rows.map((r) => r.code)).toEqual(
+      WATCHLIST,
+    );
     expect(fetch).not.toHaveBeenCalled();
   });
 });

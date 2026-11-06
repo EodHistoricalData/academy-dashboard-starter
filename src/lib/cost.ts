@@ -26,6 +26,7 @@ export const CALL_COST: Readonly<Record<string, number>> = {
   "real-time": 1,
 
   screener: 5,
+  // Five calls PER TICKER in `s`: news for two tickers in one request is ten calls.
   news: 5,
   technical: 5,
   intraday: 5,
@@ -36,7 +37,7 @@ export const CALL_COST: Readonly<Record<string, number>> = {
 };
 
 /** Endpoints that charge their price once for every symbol in the request. */
-const PER_SYMBOL = new Set(["real-time"]);
+const PER_SYMBOL = new Set(["real-time", "news"]);
 
 /**
  * How many calls one request to `path` with these query parameters will spend, or null
@@ -69,7 +70,8 @@ export function estimateCalls(
     .split(",")
     .map((s) => s.trim())
     .filter(Boolean).length;
-  return cost * (inPath + inQuery);
+  // News by topic tag (`t`) and no ticker is still one request at the base price.
+  return cost * Math.max(1, inPath + inQuery);
 }
 
 /** The longest key in CALL_COST that the path starts with, segment by segment. */

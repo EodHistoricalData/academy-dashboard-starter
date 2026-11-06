@@ -91,16 +91,31 @@ export async function proxy(
   };
   if (isMock()) headers["x-eodhd-mock"] = "1";
 
+  // EODHD has two limits and answers them differently: 402 when the day's calls are spent
+  // (20 on the free plan, reset at midnight GMT), 429 when too many requests arrive in one
+  // minute (1,000). Waiting a minute fixes the second and does nothing for the first.
+  if (answer.status === 402) {
+    headers["cache-control"] = "no-store";
+    return Response.json(
+      {
+        error:
+          "EODHD answered 402: this key has spent today's API calls (20 a day on the free plan). " +
+          "The count resets at midnight GMT; retrying before then only fails again. " +
+          "Set EODHD_MOCK=1 to keep working on fixtures meanwhile, and see /api/usage for today's count.",
+      },
+      { status: 402, headers },
+    );
+  }
+
   if (answer.status === 429) {
     headers["retry-after"] = answer.retryAfter ?? DEFAULT_RETRY_AFTER;
     headers["cache-control"] = "no-store";
     return Response.json(
       {
         error:
-          "EODHD answered 429: this key has used up its API calls for now. " +
+          "EODHD answered 429: too many requests in one minute (the limit is 1,000 a minute). " +
           `Wait ${headers["retry-after"]} seconds and try again. ` +
-          "If it is the daily limit (20 calls on the free plan), it resets at midnight UTC. " +
-          "Set EODHD_MOCK=1 to keep working on fixtures meanwhile, and see /api/usage for today's count.",
+          "Something is probably fetching in a loop: check for a request inside a render or an effect without dependencies.",
       },
       { status: 429, headers },
     );

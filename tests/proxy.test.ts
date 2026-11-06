@@ -120,8 +120,18 @@ describe("upstream status", () => {
     expect(res.status).toBe(429);
     expect(res.headers.get("retry-after")).toBe("120");
     const { error } = await res.json();
-    expect(error).toMatch(/used up its API calls/);
+    expect(error).toMatch(/in one minute/);
     expect(error).toMatch(/120 seconds/);
+  });
+
+  it("tells a spent day (402) apart from a busy minute (429)", async () => {
+    upstream("Payment Required", { status: 402 });
+    const res = await call("eod/AAPL.US");
+    expect(res.status).toBe(402);
+    expect(res.headers.get("retry-after")).toBeNull();
+    const { error } = await res.json();
+    expect(error).toMatch(/today's API calls/);
+    expect(error).toMatch(/midnight GMT/);
   });
 
   it("supplies a Retry-After when the 429 came without one", async () => {

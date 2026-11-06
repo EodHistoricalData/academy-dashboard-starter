@@ -63,7 +63,7 @@ What it does with a request:
 - **Forwards only the endpoints the course uses**: `eod`, `real-time`, `div`, `splits`, `fundamentals`, `screener`, `news`, `technical`, `intraday`, `search`, `exchange-symbol-list`. Anything else is a 404 that says so. `/user` in particular is refused: its answer carries your e-mail address, and `/api/usage` already gives you the useful part. Need another endpoint? Add it to `ALLOWED_ENDPOINTS` in `src/lib/proxy.ts`, and its cost to `src/lib/cost.ts`.
 - **Drops any `api_token` the caller supplies**, so the browser cannot use your key and cannot substitute another.
 - **Passes EODHD's status and body through**, because the body of a 403 is the only place that says which feed your plan is missing. Your key is cut out of any body that echoes it back.
-- **Answers a 429 with `Retry-After`** and a sentence saying what happened, rather than an empty table.
+- **Tells the two limits apart.** A spent day comes back as 402 (it resets at midnight GMT; retrying sooner only fails again), too many requests in one minute as 429 with `Retry-After`. Each with a sentence saying what happened, rather than an empty table.
 - **Sends identical requests that arrive together upstream once.** Two tabs opened at the same moment cost one request, not two.
 - **Says what each request cost**, in an `x-eodhd-calls` response header.
 

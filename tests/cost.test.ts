@@ -4,6 +4,12 @@ import { pageLoadCalls, quotesRequest } from "@/lib/quotes";
 import { WATCHLIST } from "@/lib/watchlist";
 
 describe("estimateCalls", () => {
+  it("charges news five calls per ticker", () => {
+    expect(estimateCalls("news", { s: "AAPL.US" })).toBe(5);
+    expect(estimateCalls("news", { s: "AAPL.US,MSFT.US" })).toBe(10);
+    expect(estimateCalls("news", { t: "technology" })).toBe(5);
+  });
+
   it("charges real-time once per symbol in s", () => {
     expect(estimateCalls("real-time", { s: "A,B,C" })).toBe(3);
   });

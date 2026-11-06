@@ -23,3 +23,8 @@ API has no idempotency key, so a run that dies between the two sends again next 
 - A run with every symbol already processed today spends 0 calls.
 - A 5xx is retried after 1 second and then 2; a 402 is not retried.
 - 00:30 UTC on 2026-07-15, the 20:30 catch-up run in summer, is trading date 2026-07-14.
+
+## Alert heartbeat
+
+Last commit: 2026-11-06. GitHub disables a public repository's schedules after 60 days with
+no activity: 2027-01-05. The heartbeat check would say so the evening after.

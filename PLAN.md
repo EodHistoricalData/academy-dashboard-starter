@@ -232,3 +232,18 @@ Where each piece lives today, and where it belongs once the three share one page
 - **Dies**: three page shells each fetching for itself, and any code that assumed a tool
   owned the whole screen. The three pages stay as they are for now; the cockpit is built
   beside them at `/dashboard`.
+
+### Alerts
+
+Enabled rules: one, on MSFT.US, so one symbol per check.
+
+```
+A server checking every 5 minutes for 6.5 hours:  78 checks x 1 symbol = 78 calls a day
+The same, every minute:                           390 checks x 1 symbol = 390 calls a day
+My daily allowance (free plan):                    20 calls
+```
+
+Priced with estimateCalls on `real-time/MSFT.US`: 1 call a check, because /real-time is billed
+per symbol. Even the five-minute loop needs four times the allowance, for one rule. Today the
+rules are checked only while the dashboard is open, and the page says so.
+

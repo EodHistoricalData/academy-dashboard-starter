@@ -30,7 +30,10 @@ import {
 import type { Notes } from "@/lib/notes";
 import { panelState } from "@/lib/panel-state";
 import { type Needs, type PanelData, type PanelDef, unionNeeds } from "@/lib/panels";
-import { type Rule, ruleSentence } from "@/lib/rules";
+import { checkAll } from "@/lib/check-all";
+import type { Quote } from "@/lib/quotes";
+import { isAvailable } from "@/lib/rows";
+import { alertText, type Rule, ruleSentence } from "@/lib/rules";
 import {
   eodViaProxy,
   failureOf,
@@ -99,6 +102,7 @@ export function Cockpit({
   signedIn,
   notes,
   initialRules,
+  rulesVersion,
 }: {
   initialLayouts: SavedLayouts;
   /** The layout the address asked for, already resolved: unknown names open the default. */
@@ -108,8 +112,15 @@ export function Cockpit({
   notes: Notes;
   /** The "rules" document, or the seed until one is saved. */
   initialRules: Rule[];
+  rulesVersion: number;
 }) {
-  const [rules] = useState(initialRules);
+  // The rules and what they last saw. Checked after every quotes answer, while this page
+  // is open, and only then.
+  const [rules, setRules] = useState(initialRules);
+  const rulesNow = useRef(initialRules);
+  const rulesSaved = useRef(rulesVersion);
+  const rulesSaving = useRef<Promise<void>>(Promise.resolve());
+  const [fired, setFired] = useState<{ rule: Rule; quote: Quote }[]>([]);
   // Named layouts are one document, all of them here: switching is state, not a request.
   const [layouts, setLayouts] = useState<SavedLayouts>(initialLayouts);
   const [name, setName] = useState(initialName);
@@ -186,9 +197,43 @@ export function Cockpit({
    * the others, and rows already on screen stay there while newer ones are fetched.
    * `force` asks again even for answers younger than the cache's age: a refresh pressed.
    */
+  const runChecks = useCallback(async () => {
+    const current = rulesNow.current;
+    const results = await checkAll(
+      current,
+      // The store already holds these: the rules' symbols are in every fetch's union.
+      async (symbols) =>
+        (await stores.quotes.quotes(symbols)).map((f) => f.row).filter(isAvailable),
+      Date.now(),
+    );
+    const next = current.map((r) => {
+      const c = results.find((x) => x.rule.id === r.id);
+      return c
+        ? { ...r, lastValue: c.nextLastValue, lastFiredAt: c.fires ? c.checkedAt : r.lastFiredAt }
+        : r;
+    });
+    setFired(
+      results.flatMap((c) => {
+        const row = stores.quotes.peek(c.rule.ticker)?.row;
+        return c.fires && row && isAvailable(row) ? [{ rule: c.rule, quote: row }] : [];
+      }),
+    );
+    if (JSON.stringify(next) === JSON.stringify(current)) return;
+    rulesNow.current = next;
+    setRules(next);
+    if (!signedIn) return;
+    // What the rules last saw is stored, so the next check knows what "crossed" means.
+    rulesSaving.current = rulesSaving.current.then(async () => {
+      const outcome = await putDocViaRoute("rules", rulesSaved.current, next);
+      if (outcome.kind === "saved") rulesSaved.current = outcome.version;
+      if (outcome.kind === "conflict" && outcome.current) rulesSaved.current = outcome.current.version;
+    });
+  }, [stores, signedIn]);
+
   const fetchFor = useCallback(
     async (needs: Needs[], force: boolean) => {
-      const symbols = unionNeeds(needs);
+      const ruleSymbols = rulesNow.current.filter((r) => r.enabled).map((r) => r.ticker);
+      const symbols = unionNeeds([...needs, { quotes: ruleSymbols }]);
       const screens = [...new Set(needs.flatMap((n) => (n.screen ? [screenKey(n.screen)] : [])))];
       const histories = [...new Set(needs.flatMap((n) => (n.eod ? [n.eod] : [])))];
 
@@ -214,13 +259,14 @@ export function Cockpit({
 
       await Promise.all([
         symbols.length > 0 &&
-          settle("quotes", () => stores.quotes.quotes(symbols, force), (rows) =>
+          settle("quotes", () => stores.quotes.quotes(symbols, force), (rows) => {
             setLoaded((l) => {
               const quotes = new Map(l.quotes);
               for (const q of rows) quotes.set(q.row.code, q);
               return { ...l, quotes };
-            }),
-          ),
+            });
+            void runChecks();
+          }),
         ...screens.map((k) =>
           settle(`screen:${k}`, () => stores.screens.get(k, force), (v) =>
             setLoaded((l) => ({ ...l, screens: new Map(l.screens).set(k, v) })),
@@ -233,7 +279,7 @@ export function Cockpit({
         ),
       ]);
     },
-    [stores],
+    [stores, runChecks],
   );
 
   useEffect(() => {
@@ -350,7 +396,7 @@ export function Cockpit({
           Refresh
         </button>
       </div>
-      <RulesList rules={rules} />
+      <RulesList rules={rules} fired={fired} />
       <div className="grid auto-rows-[minmax(8rem,auto)] grid-cols-1 gap-4 sm:grid-cols-4">
         {layout.panels.map((panel, i) => {
           const def = defOf(panel);
@@ -405,8 +451,14 @@ export function Cockpit({
   );
 }
 
-/** Every rule, as the sentence of what it watches. */
-function RulesList({ rules }: { rules: Rule[] }) {
+/** Every rule, as the sentence of what it watches, and what fired on the last check. */
+function RulesList({
+  rules,
+  fired,
+}: {
+  rules: Rule[];
+  fired: { rule: Rule; quote: Quote }[];
+}) {
   return (
     <section className="flex flex-col gap-1 text-sm" aria-label="Rules">
       <h2 className="text-xs font-medium uppercase tracking-wide text-zinc-500 dark:text-zinc-400">
@@ -421,6 +473,16 @@ function RulesList({ rules }: { rules: Rule[] }) {
           ))}
         </ul>
       )}
+      {fired.length > 0 && (
+        <ul className="flex flex-col gap-0.5 font-medium tabular-nums">
+          {fired.map(({ rule, quote }) => (
+            <li key={rule.id}>Fired: {alertText(rule, quote)}</li>
+          ))}
+        </ul>
+      )}
+      <p className="text-xs text-zinc-500 dark:text-zinc-400">
+        Rules are checked while this page is open.
+      </p>
     </section>
   );
 }

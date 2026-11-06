@@ -141,3 +141,13 @@ The rule was chosen from the course's example, not from looking at a chart of SP
 what lets "stated in advance" stay in the sentence.
 
 It is a historical simulation. Nothing it prints is advice.
+
+### The defaults, chosen from theory and run once
+
+Fast 20, slow 50, 10 bps a trade: the rule's textbook form, set before any result. First
+run, on the fixture year (window 2026-01-13 to 2026-10-30, where the 50-day average first
+exists): **net +4.64%, 3 trades, 61% of the time in the market**. Buy and hold on the same
+window and costs: +23.72%.
+
+This number stays. Anything found later by changing the parameters is compared with it,
+not written over it, and the run log in `.cache/runs.jsonl` counts the attempts.

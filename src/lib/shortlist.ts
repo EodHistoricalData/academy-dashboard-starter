@@ -30,12 +30,15 @@ export function withoutPick(list: Shortlist, code: string): Shortlist {
 }
 
 export function parseShortlist(raw: string | null): Shortlist {
-  let value: unknown;
   try {
-    value = JSON.parse(raw ?? "{}");
+    return shortlistFrom(JSON.parse(raw ?? "{}"));
   } catch {
     return {};
   }
+}
+
+/** The same checks on a value already parsed: the server's copy arrives as JSON. */
+export function shortlistFrom(value: unknown): Shortlist {
   if (value === null || typeof value !== "object" || Array.isArray(value)) return {};
   const list: Shortlist = {};
   for (const [code, entry] of Object.entries(value)) {

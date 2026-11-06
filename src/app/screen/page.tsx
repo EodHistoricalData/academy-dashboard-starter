@@ -8,7 +8,7 @@ import {
   UserLine,
 } from "@/components/Notices";
 import { SavedScreens } from "@/components/SavedScreens";
-import { ShortlistPanel } from "@/components/Shortlist";
+import { ShortlistPanel, ShortlistProvider } from "@/components/Shortlist";
 import { ScreenForm } from "@/components/ScreenForm";
 import { WallMeter } from "@/components/WallMeter";
 import { hasKey, isMock } from "@/lib/eodhd";
@@ -51,6 +51,7 @@ export default async function ScreenPage({
   const { list: watching } = await myTickers();
   const user = await currentUser();
   const savedScreens = user ? getDoc(user.id, "saved-screens") : null;
+  const shortlist = user ? getDoc(user.id, "shortlist") : null;
   const [result, plan] = await Promise.all([
     screen(current),
     mock || hasKey() ? account() : Promise.resolve(null),
@@ -76,67 +77,70 @@ export default async function ScreenPage({
 
         <UserLine user={user} />
 
-        <div className="grid gap-8 sm:grid-cols-2">
-          <SavedScreens
-            filters={filters}
-            sort={sort}
-            initial={savedScreens}
-            signedIn={user !== null}
-          />
-          <ShortlistPanel />
-        </div>
-
-        {dropped.length > 0 && (
-          <p className="text-sm text-amber-900 dark:text-amber-200">
-            Dropped from the address, not on this screener’s list:{" "}
-            {dropped.map((d, i) => (
-              <span key={d}>
-                {i > 0 && ", "}
-                <Code>{d}</Code>
-              </span>
-            ))}
-          </p>
-        )}
-
-        {"failure" in result &&
-          (result.failure.kind === "no-key" ? (
-            <NoKey />
-          ) : (
-            <CallFailed failure={result.failure} />
-          ))}
-
-        {"invalid" in result && (
-          // The screener says which filter it refused. That path is worth more than any
-          // "something went wrong", so it is shown as it came.
-          <section className="rounded-lg border border-zinc-300 bg-white p-4 text-sm dark:border-zinc-700 dark:bg-zinc-900">
-            <h2 className="font-semibold">The screener refused a filter</h2>
-            <ul className="mt-2 list-disc space-y-1 pl-5 text-zinc-600 dark:text-zinc-400">
-              {result.invalid.map((m) => (
-                <li key={m}>{m}</li>
-              ))}
-            </ul>
-          </section>
-        )}
-
-        {rows !== null && (
-          <section className="flex flex-col gap-3">
-            {asOf && (
-              <p className="text-xs text-zinc-600 dark:text-zinc-400">
-                As of {asOf}, the last completed session, not live prices.
-                Earnings and yield are as old as each company’s latest filing.
-                A company missing a field a filter uses is excluded, the same as
-                one that fails it.
-              </p>
-            )}
-            <DataTable
-              columns={[...SCREEN_COLUMNS, watchlistColumn(watching)]}
-              rows={rows}
-              rowKey={(r) => r.code}
-              caption="Companies matching the screen, largest first."
-              empty="Nothing matches these filters."
+        {/* One shortlist document for the panel and the cells in the table. */}
+        <ShortlistProvider initial={shortlist} signedIn={user !== null}>
+          <div className="grid gap-8 sm:grid-cols-2">
+            <SavedScreens
+              filters={filters}
+              sort={sort}
+              initial={savedScreens}
+              signedIn={user !== null}
             />
-          </section>
-        )}
+            <ShortlistPanel />
+          </div>
+
+          {dropped.length > 0 && (
+            <p className="text-sm text-amber-900 dark:text-amber-200">
+              Dropped from the address, not on this screener’s list:{" "}
+              {dropped.map((d, i) => (
+                <span key={d}>
+                  {i > 0 && ", "}
+                  <Code>{d}</Code>
+                </span>
+              ))}
+            </p>
+          )}
+
+          {"failure" in result &&
+            (result.failure.kind === "no-key" ? (
+              <NoKey />
+            ) : (
+              <CallFailed failure={result.failure} />
+            ))}
+
+          {"invalid" in result && (
+            // The screener says which filter it refused. That path is worth more than any
+            // "something went wrong", so it is shown as it came.
+            <section className="rounded-lg border border-zinc-300 bg-white p-4 text-sm dark:border-zinc-700 dark:bg-zinc-900">
+              <h2 className="font-semibold">The screener refused a filter</h2>
+              <ul className="mt-2 list-disc space-y-1 pl-5 text-zinc-600 dark:text-zinc-400">
+                {result.invalid.map((m) => (
+                  <li key={m}>{m}</li>
+                ))}
+              </ul>
+            </section>
+          )}
+
+          {rows !== null && (
+            <section className="flex flex-col gap-3">
+              {asOf && (
+                <p className="text-xs text-zinc-600 dark:text-zinc-400">
+                  As of {asOf}, the last completed session, not live prices.
+                  Earnings and yield are as old as each company’s latest filing.
+                  A company missing a field a filter uses is excluded, the same as
+                  one that fails it.
+                </p>
+              )}
+              <DataTable
+                columns={[...SCREEN_COLUMNS, watchlistColumn(watching)]}
+                rows={rows}
+                rowKey={(r) => r.code}
+                caption="Companies matching the screen, largest first."
+                empty="Nothing matches these filters."
+              />
+            </section>
+          )}
+        </ShortlistProvider>
 
         <div className="border-t border-zinc-200 pt-8 dark:border-zinc-800 sm:w-1/2">
           <WallMeter

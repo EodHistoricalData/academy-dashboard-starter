@@ -23,9 +23,12 @@ if printf '%s' "$staged" | grep -Eq '[0-9a-f]{12,}\.[0-9]{6,}'; then
   echo "Refusing to commit: a line you are adding looks like an EODHD API key."
   echo
   echo "Offending line(s):"
-  printf '%s' "$staged" | grep -En '[0-9a-f]{12,}\.[0-9]{6,}' | head -5
+  # Masked: the point is to find the line, not to print the key into your terminal,
+  # your agent's context or a CI log.
+  printf '%s' "$staged" | grep -En '[0-9a-f]{12,}\.[0-9]{6,}' | head -5     | sed -E 's/([0-9a-f]{4})[0-9a-f]{8,}\.[0-9]{6,}/****/g'
   echo
   echo "Keys belong in .env.local, which is gitignored. Never in git."
-  echo "If this is a false positive, commit with --no-verify and fix the pattern."
+  echo "If this is a false positive (a hash or a test fixture, not a key), change the"
+  echo "line or the pattern in scripts/precommit-key-guard.sh. Do not skip the hook."
   exit 1
 fi

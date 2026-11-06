@@ -71,3 +71,15 @@ and what it would cost. Do not fix anything.
 Sort what comes back into real (a line and a consequence you can reproduce: failing test
 first, then the fix), plausible and wrong (check, then discard), and taste (ignore unless it
 would have prevented a bug). CI on the pull request decides what merges.
+
+## Feature pass before shipping the two pages together
+
+- Leaks: the add-to-watchlist value reaches a request made with the key, so the server
+  action checks it against the ticker shape, and so does every read of the cookie
+  (`tests/added.test.ts`). The network check now covers both pages.
+- Cost: each name added from the screen is one more call on every watchlist load; capped at
+  ten, and counted by the meter and `/api/usage`.
+- Lies: nothing on the screen says "pick" or "signal"; it says the rows match the filters,
+  and the shortlist says it is not a recommendation.
+- Failure: the loading skeleton had no navigation, so the page jumped when data landed; it
+  carries the same two links now.

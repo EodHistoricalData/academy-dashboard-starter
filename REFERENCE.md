@@ -38,3 +38,28 @@ a choice to you, the section for that unit says which one we made. Yours can dif
   `src/lib/eodhd.ts`, the one file that reads the key.
 - `tests/proxy.test.ts` changed in one place: `quotes()` now returns `{ rows }` or
   `{ failure }`, so the mock-mode test reads `result.rows`.
+
+## Build Your First Tool · unit 3: Make It Yours
+
+- `PLAN.md` is edited, as the first lesson said it would be: sorting, notes and one rule move
+  into scope; search and syncing notes stay out.
+- Sorting: `sortRows` in `src/lib/sort.ts`, three keys (as written, change %, volume), ties
+  broken by ticker, rows without prices last. `tests/sort.test.ts` has the lesson's tie test
+  (two tied rows in both orders). The control is a client island,
+  `src/components/SortedWatchlist.tsx`; the choice is kept in localStorage under
+  `watchlist-sort-v1`. The page stays a server component and passes finished rows down.
+- Notes: `loadNotes` in `src/lib/notes.ts` under `watchlist-notes-v1`, keyed by ticker, and
+  `tests/notes.test.ts` feeds it half a write. The editor is `src/components/NoteField.tsx`,
+  one input per row. We kept `tags` in the type but built no tag editor: the lesson asks for
+  a note field, and tags earn a place only once you reuse them.
+- `src/lib/stored.ts` is the one place that touches localStorage, through
+  `useSyncExternalStore`, so the server render sees nothing saved and nothing flickers into
+  a wrong state.
+- Rules: `Rule`, `fires` and `alertText` in `src/lib/rules.ts`, tested first in
+  `tests/rules.test.ts` against a literal quote. Our choice: the rules are a data array in
+  that file, checked on the server when the page renders, not in localStorage like the
+  notes, because one rule needs no editor. The rule (MSFT.US down more than 0.5%) fires on
+  the fixtures. The sentence about when rules are checked sits under the rules panel.
+- Your symbols: the full list in reading order, with `005930.KO` as the listing we suspect
+  the plan does not cover. In mock mode it is unavailable because `fixtures/real-time.json`
+  has no row for it; live, which of yours come back empty depends on your plan.

@@ -280,3 +280,40 @@ a choice to you, the section for that unit says which one we made. Yours can dif
 - Structure only: `src/lib/screen-query.ts` and `src/lib/backtest/bars.ts` hold the parts of
   the screener and the backtest with no disk or network in them, so the browser can use
   them in unit 2.
+
+## Build a Dashboard · unit 2: The Cockpit
+
+- The contract: `src/lib/panels.ts` (`PanelProps`, `PanelDef`, `unionNeeds`). Our addition:
+  `Needs` may also ask for one screen or one daily history, because the screen and the
+  backtest are panels too (`src/components/panels/`); quotes stay a symbol list so they
+  union. The watchlist panel reuses `DataTable` and the watchlist's price columns; notes
+  arrive as data and are shown as text, not edited, so the panel reads no storage.
+- `src/components/Cockpit.tsx` owns fetching: it unions every panel's needs and asks the
+  market store once, from the browser through `/api/proxy` (`src/lib/proxy-fetch.ts`).
+  Priced before wiring: the default layout costs 13 calls a load live (7 quotes, a screen
+  at 5, one daily history at 1). `DataTable` gained a clickable first cell and a selected
+  row, which the cockpit needs and the other two callers do not use.
+- Selection: `src/lib/selection.ts` (`nextSelection`, `shownSymbol`, `fromAddress`). Every
+  panel config has `follows`, so the layout moved to version 2 with a migration; the quote
+  panel follows, the rest stay still. Our fix to the lesson's `shownSymbol`: a following
+  panel shows its own symbol until something is selected, instead of nothing. Selecting a
+  symbol already on the watchlist costs 0 calls; one from the screen costs a quote, 1 call.
+- Break it on purpose works: the selection is written to the address, and read back by an
+  effect that runs whenever what the page shows changes — which includes the selected
+  symbol. With the no-op removed from `nextSelection`, one click replaces the address
+  thousands of times a second and the page stops responding; under `npm run dev` the
+  console fills with React's "Maximum update depth exceeded". The Network tab stays quiet
+  in mock mode, because the market store answers from its cache. The address is read from
+  `window.location` in that effect, not from the render's `searchParams`, which would undo
+  a click with the previous symbol.
+- Named layouts: `src/lib/layouts.ts` and `src/components/LayoutSwitcher.tsx`; a `layouts`
+  document in the store. Switching is state plus `history.replaceState`; switching between
+  layouts that share every symbol makes no request. Changes autosave with the version read
+  (`src/lib/doc-client.ts`, also used by the notes, screens and shortlist now); a newer
+  version from another tab is shown, an unreachable store is said and nothing else breaks.
+  Panels are renamed in place. "Revert to saved" restores the copy stored when the layout
+  was opened in this page view. Export downloads one layout as JSON.
+- States: `src/lib/panel-state.ts`, `failureSentence` in `src/lib/failure.ts` (404 is now
+  its own kind, with EODHD's plain-text reason), `src/components/PanelBoundary.tsx`.
+  Refreshing keeps the rows with a marker; a failure keeps them, labelled stale; a 402
+  offers no retry. A Refresh button asks again even inside the cache's age.

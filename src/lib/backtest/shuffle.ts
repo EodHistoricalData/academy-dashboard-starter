@@ -1,5 +1,7 @@
 import type { Bar } from "@/lib/backtest/candles";
-import type { Run } from "@/lib/backtest/strategy";
+import { backtest, type Params, type Run } from "@/lib/backtest/strategy";
+import { totalReturn } from "@/lib/backtest/metrics";
+import { signals } from "@/lib/backtest/signal";
 
 /**
  * Checks a backtest can run on itself. Three detect leaks; the shuffle is a null test for
@@ -52,3 +54,44 @@ function mulberry32(seed: number): () => number {
     return ((t ^ (t >>> 14)) >>> 0) / 4294967296;
   };
 }
+
+/**
+ * The checks run against the data a report describes, so the report can say they passed
+ * on that run rather than on a fixture. The same properties are in tests/honesty.test.ts.
+ */
+export function honestyChecks(
+  bars: Bar[],
+  params: Params,
+): {
+  futureMutation: boolean;
+  truncation: boolean;
+  fillRange: { passed: boolean; fills: number };
+  shuffle: { real: number; shuffled: number };
+} {
+  const k = Math.floor(bars.length * 0.6);
+  const before = signals(bars, params).slice(0, k + 1);
+  const nonsense = bars.map((b, i) =>
+    i > k ? { ...b, adjusted_close: 1 + (i % 7) * 1000, close: 1 + (i % 7) * 1000 } : b,
+  );
+  const after = signals(nonsense, params).slice(0, k + 1);
+
+  const short = backtest(bars.slice(0, k + 1), params);
+  const full = backtest(bars, params);
+  const n = short.positions.length;
+
+  return {
+    futureMutation: JSON.stringify(before) === JSON.stringify(after),
+    truncation:
+      JSON.stringify(full.positions.slice(0, n)) === JSON.stringify(short.positions) &&
+      JSON.stringify(full.signals.slice(0, n)) === JSON.stringify(short.signals),
+    fillRange: {
+      passed: fillsOutsideRange(bars, full).length === 0,
+      fills: full.fills.length,
+    },
+    shuffle: {
+      real: totalReturn(full.net),
+      shuffled: totalReturn(backtest(shuffled(bars, 42), params).net),
+    },
+  };
+}
+

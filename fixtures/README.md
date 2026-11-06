@@ -10,6 +10,7 @@ the same code that reads the real thing.
 | `eod/AAPL.US.json` | `eod/AAPL.US`, ten daily bars. `filter=last_close` gives the last close. |
 | `fundamentals/AAPL.US.json` | `fundamentals/AAPL.US`, a few sections of the real document. `filter=General::Name` works. |
 | `user.json` | Your plan and today's count, for the meter on the page. |
+| `screener.json` | `screener`, twenty rows under `data` as the real endpoint wraps them. The same answer whatever the filters, sort or limit: the mock does not screen. |
 
 To mock another request, add a file at `fixtures/<endpoint>/<SYMBOL>.json`. A request with
 no file gets a 404 naming the path it looked for.

@@ -14,11 +14,14 @@ export function WallMeter({
   account,
   pageCalls,
   mock,
+  basis = "one per ticker",
 }: {
   account: Account | null;
   /** What one load of this page spends; see pageLoadCalls in src/lib/quotes.ts. */
   pageCalls: number;
   mock: boolean;
+  /** Where that number comes from, in a few words. */
+  basis?: string;
 }) {
   // The price of a reload, beside the balance it comes out of. "12 left" means little
   // until you know a reload costs 5.
@@ -26,7 +29,7 @@ export function WallMeter({
     <p className="text-xs tabular-nums text-zinc-600 dark:text-zinc-400">
       {mock
         ? `This load cost nothing. Live, it would cost ${calls(pageCalls)}.`
-        : `Each load of this page costs ${calls(pageCalls)}: one per ticker.`}
+        : `Each load of this page costs ${calls(pageCalls)}: ${basis}.`}
     </p>
   );
 

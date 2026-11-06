@@ -3,13 +3,16 @@
 import { useSearchParams } from "next/navigation";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { LayoutSwitcher } from "@/components/LayoutSwitcher";
+import { PanelBoundary } from "@/components/PanelBoundary";
+import { PanelFrame } from "@/components/PanelFrame";
 import { BacktestPanel } from "@/components/panels/BacktestPanel";
 import { QuotePanel } from "@/components/panels/QuotePanel";
 import { ScreenPanel } from "@/components/panels/ScreenPanel";
 import { WatchlistPanel } from "@/components/panels/WatchlistPanel";
-import { PanelFrame } from "@/components/PanelFrame";
+import { toTicker } from "@/lib/added";
 import type { Bar } from "@/lib/backtest/bars";
 import { putDocViaRoute } from "@/lib/doc-client";
+import { type Failure, failureSentence } from "@/lib/failure";
 import type { Layout, Panel } from "@/lib/layout";
 import {
   exportLayout,
@@ -22,17 +25,18 @@ import {
   createMarketStore,
   createRequestCache,
   type Fetched,
+  oldestTimestamp,
 } from "@/lib/market-store";
 import type { Notes } from "@/lib/notes";
-import type { Needs, PanelData, PanelDef } from "@/lib/panels";
-import { unionNeeds } from "@/lib/panels";
+import { panelState } from "@/lib/panel-state";
+import { type Needs, type PanelData, type PanelDef, unionNeeds } from "@/lib/panels";
 import {
   eodViaProxy,
+  failureOf,
   quotesViaProxy,
   screenKey,
   screenViaProxy,
 } from "@/lib/proxy-fetch";
-import { toTicker } from "@/lib/added";
 import type { ScreenRow } from "@/lib/screen-query";
 import {
   fromAddress,
@@ -64,6 +68,15 @@ function effectiveConfig(panel: Panel, selection: Selection): unknown {
   return symbol === panel.config.symbol ? panel.config : { ...panel.config, symbol };
 }
 
+/** The requests a panel's needs come to, by the key the container tracks them under. */
+function keysOf(needs: Needs): string[] {
+  return [
+    ...(needs.quotes.length > 0 ? ["quotes"] : []),
+    ...(needs.screen ? [`screen:${screenKey(needs.screen)}`] : []),
+    ...(needs.eod ? [`eod:${needs.eod}`] : []),
+  ];
+}
+
 type Loaded = {
   quotes: Map<string, Fetched>;
   screens: Map<string, { value: ScreenRow[]; fetchedAt: number }>;
@@ -75,7 +88,8 @@ const EMPTY: Loaded = { quotes: new Map(), screens: new Map(), bars: new Map() }
 /**
  * The cockpit: it owns fetching for every panel. It collects what each panel needs, unions
  * the symbols so two panels wanting the same one ask once, asks the market store (which
- * goes through /api/proxy) and hands each panel its part. Panels only draw.
+ * goes through /api/proxy) and hands each panel its part. Panels only draw; their state
+ * (loading, refreshing, ready, empty, failed) is worked out here, one panel at a time.
  */
 export function Cockpit({
   initialLayouts,
@@ -107,6 +121,9 @@ export function Cockpit({
     bars: createRequestCache(eodViaProxy, Date.now, 60 * 60_000),
   }));
   const [loaded, setLoaded] = useState<Loaded>(EMPTY);
+  // What is being fetched, and what last failed, by request key ("quotes", "screen:…").
+  const [fetching, setFetching] = useState<ReadonlySet<string>>(new Set());
+  const [failures, setFailures] = useState<ReadonlyMap<string, Failure>>(new Map());
   const [selection, setSelection] = useState<Selection>(NO_SELECTION);
 
   // The one way the selection changes. Selecting what is already selected returns the
@@ -156,9 +173,71 @@ export function Cockpit({
     const now = new URLSearchParams(window.location.search).get("symbol");
     const addressed = fromAddress(now, showing);
     // Setting state from an outside system, the address, is what this effect is for.
-    // eslint-disable-next-line react-hooks/set-state-in-effect
     if (addressed !== null) select(addressed, "address");
   }, [searchParams, showing, select]);
+
+  /**
+   * Fetch what the given needs ask for, each request on its own: one failing does not stop
+   * the others, and rows already on screen stay there while newer ones are fetched.
+   * `force` asks again even for answers younger than the cache's age: a refresh pressed.
+   */
+  const fetchFor = useCallback(
+    async (needs: Needs[], force: boolean) => {
+      const symbols = unionNeeds(needs);
+      const screens = [...new Set(needs.flatMap((n) => (n.screen ? [screenKey(n.screen)] : [])))];
+      const histories = [...new Set(needs.flatMap((n) => (n.eod ? [n.eod] : [])))];
+
+      const settle = async <T,>(key: string, job: () => Promise<T>, apply: (value: T) => void) => {
+        setFetching((prev) => new Set(prev).add(key));
+        try {
+          apply(await job());
+          setFailures((prev) => {
+            const next = new Map(prev);
+            next.delete(key);
+            return next;
+          });
+        } catch (error) {
+          setFailures((prev) => new Map(prev).set(key, failureOf(error)));
+        } finally {
+          setFetching((prev) => {
+            const next = new Set(prev);
+            next.delete(key);
+            return next;
+          });
+        }
+      };
+
+      await Promise.all([
+        symbols.length > 0 &&
+          settle("quotes", () => stores.quotes.quotes(symbols, force), (rows) =>
+            setLoaded((l) => {
+              const quotes = new Map(l.quotes);
+              for (const q of rows) quotes.set(q.row.code, q);
+              return { ...l, quotes };
+            }),
+          ),
+        ...screens.map((k) =>
+          settle(`screen:${k}`, () => stores.screens.get(k, force), (v) =>
+            setLoaded((l) => ({ ...l, screens: new Map(l.screens).set(k, v) })),
+          ),
+        ),
+        ...histories.map((s) =>
+          settle(`eod:${s}`, () => stores.bars.get(s, force), (v) =>
+            setLoaded((l) => ({ ...l, bars: new Map(l.bars).set(s, v) })),
+          ),
+        ),
+      ]);
+    },
+    [stores],
+  );
+
+  useEffect(() => {
+    // Started after this render, so the effect itself sets no state.
+    const started = Promise.resolve().then(() =>
+      fetchFor(needsByPanel.flatMap((n) => (n ? [n] : [])), false),
+    );
+    void started;
+  }, [needsByPanel, fetchFor]);
 
   // Autosave: every change to a layout writes the whole document with the version read.
   // Writes go out one at a time; another tab's newer version is shown, not overwritten.
@@ -182,7 +261,9 @@ export function Cockpit({
         setSaveLine("Your other tab saved these layouts first; this now shows its version.");
       } else {
         // The store being down is not the cockpit being down: keep drawing, say so.
-        setSaveLine("The layout could not be saved: the store did not answer. Everything on screen still works.");
+        setSaveLine(
+          "The layout could not be saved: the store did not answer. Everything on screen still works.",
+        );
       }
     });
   }
@@ -223,33 +304,6 @@ export function Cockpit({
     URL.revokeObjectURL(url);
   }
 
-  useEffect(() => {
-    const needs = needsByPanel.flatMap((n) => (n ? [n] : []));
-    const symbols = unionNeeds(needs);
-    const screens = [...new Set(needs.flatMap((n) => (n.screen ? [screenKey(n.screen)] : [])))];
-    const histories = [...new Set(needs.flatMap((n) => (n.eod ? [n.eod] : [])))];
-
-    let live = true;
-    (async () => {
-      const [quotes, screenAnswers, barAnswers] = await Promise.all([
-        stores.quotes.quotes(symbols),
-        Promise.all(screens.map((k) => stores.screens.get(k))),
-        Promise.all(histories.map((s) => stores.bars.get(s))),
-      ]);
-      if (!live) return;
-      setLoaded({
-        quotes: new Map(quotes.map((q) => [q.row.code, q])),
-        screens: new Map(screens.map((k, i) => [k, screenAnswers[i]])),
-        bars: new Map(histories.map((s, i) => [s, barAnswers[i]])),
-      });
-    })().catch(() => {
-      // Unit 2's last lesson gives each panel its own failure state.
-    });
-    return () => {
-      live = false;
-    };
-  }, [needsByPanel, stores]);
-
   function dataFor(needs: Needs): PanelData {
     const screen = needs.screen ? loaded.screens.get(screenKey(needs.screen)) : undefined;
     const bars = needs.eod ? loaded.bars.get(needs.eod) : undefined;
@@ -262,17 +316,35 @@ export function Cockpit({
     };
   }
 
+  /** What the panel has, for its state: null until the first answer for it arrives. */
+  function rowsOf(needs: Needs, data: PanelData): unknown[] | null {
+    if (needs.screen) return data.screen?.rows ?? null;
+    if (needs.eod) return data.bars?.rows ?? null;
+    return data.quotes.length === 0 && needs.quotes.length > 0 ? null : data.quotes;
+  }
+
   return (
     <div className="flex flex-col gap-4">
-      <LayoutSwitcher
-        names={Object.keys(layouts)}
-        current={layout.name}
-        status={saveLine}
-        onSwitch={switchTo}
-        onNew={newLayout}
-        onRevert={() => saveLayouts({ ...layouts, [layout.name]: opened })}
-        onExport={download}
-      />
+      <div className="flex flex-wrap items-start gap-4">
+        <div className="min-w-0 flex-1">
+          <LayoutSwitcher
+            names={Object.keys(layouts)}
+            current={layout.name}
+            status={saveLine}
+            onSwitch={switchTo}
+            onNew={newLayout}
+            onRevert={() => saveLayouts({ ...layouts, [layout.name]: opened })}
+            onExport={download}
+          />
+        </div>
+        <button
+          type="button"
+          onClick={() => void fetchFor(needsByPanel.flatMap((n) => (n ? [n] : [])), true)}
+          className="rounded border border-zinc-300 px-2.5 py-1 text-sm dark:border-zinc-700"
+        >
+          Refresh
+        </button>
+      </div>
       <div className="grid auto-rows-[minmax(8rem,auto)] grid-cols-1 gap-4 sm:grid-cols-4">
         {layout.panels.map((panel, i) => {
           const def = defOf(panel);
@@ -281,19 +353,112 @@ export function Cockpit({
           if (!def || !needs) {
             return <PanelFrame key={panel.id} panel={panel} onRename={onRename} />;
           }
+          const keys = keysOf(needs);
+          const data = dataFor(needs);
+          const state = panelState({
+            rows: rowsOf(needs, data),
+            fetching: keys.some((k) => fetching.has(k)),
+            failure: keys.map((k) => failures.get(k)).find(Boolean) ?? null,
+          });
           const { Component } = def;
+          const body = (
+            <Component
+              config={effectiveConfig(panel, selection) as never}
+              data={data}
+              onSelect={(symbol) => select(symbol, panel.id)}
+              onConfigChange={() => {}}
+            />
+          );
           return (
-            <PanelFrame key={panel.id} panel={panel} onRename={onRename}>
-              <Component
-                config={effectiveConfig(panel, selection) as never}
-                data={dataFor(needs)}
-                onSelect={(symbol) => select(symbol, panel.id)}
-                onConfigChange={() => {}}
-              />
+            <PanelFrame
+              key={panel.id}
+              panel={panel}
+              onRename={onRename}
+              aside={asideFor(state.kind, needs, data)}
+            >
+              <PanelBoundary>
+                {state.kind === "loading" ? (
+                  <Skeleton />
+                ) : state.kind === "failed" ? (
+                  <div className="flex flex-col gap-3">
+                    <Failed
+                      failure={state.failure}
+                      onRetry={() => void fetchFor([needs], true)}
+                    />
+                    {state.rows !== null && body}
+                  </div>
+                ) : (
+                  body
+                )}
+              </PanelBoundary>
             </PanelFrame>
           );
         })}
       </div>
+    </div>
+  );
+}
+
+/** The small text at the right of a panel's title: its state, and the age of what it shows. */
+function asideFor(kind: string, needs: Needs, data: PanelData): string {
+  const age = ageOf(needs, data);
+  switch (kind) {
+    case "loading":
+      return "Loading…";
+    case "refreshing":
+      return age ? `${age} · refreshing…` : "Refreshing…";
+    case "failed":
+      return age ? `${age} · stale, refresh failed` : "Failed";
+    default:
+      return age ?? "";
+  }
+}
+
+/** The age of the data itself, from its own dates, not from when it was fetched. */
+function ageOf(needs: Needs, data: PanelData): string | null {
+  if (needs.screen) {
+    const date = data.screen?.rows[0]?.last_day_data_date;
+    return date ? `session ${date}` : null;
+  }
+  if (needs.eod) {
+    const last = data.bars?.rows.at(-1)?.date;
+    return last ? `to ${last}` : null;
+  }
+  const oldest = oldestTimestamp(data.quotes.map((q) => q.row));
+  if (oldest === null) return null;
+  const minutes = Math.max(0, Math.round((data.quotes[0].fetchedAt / 1000 - oldest) / 60));
+  if (minutes < 60) return `${minutes} min old`;
+  const hours = Math.round(minutes / 60);
+  return hours < 48 ? `${hours} h old` : `${Math.round(hours / 24)} days old`;
+}
+
+function Skeleton() {
+  return (
+    <div className="flex flex-col gap-2" aria-busy="true">
+      {[0, 1, 2].map((i) => (
+        <div key={i} className="h-3 w-full rounded-sm bg-zinc-100 dark:bg-zinc-800" />
+      ))}
+    </div>
+  );
+}
+
+function Failed({ failure, onRetry }: { failure: Failure; onRetry(): void }) {
+  const { what, next } = failureSentence(failure);
+  // A spent day never retries: asking again before midnight only fails again.
+  const retry = failure.kind !== "quota" && failure.kind !== "no-key";
+  return (
+    <div className="flex flex-col items-start gap-1.5 rounded border border-zinc-200 bg-zinc-50 p-3 dark:border-zinc-800 dark:bg-zinc-950">
+      <p className="font-medium">{what}</p>
+      <p className="text-zinc-600 dark:text-zinc-400">{next}</p>
+      {retry && (
+        <button
+          type="button"
+          onClick={onRetry}
+          className="rounded border border-zinc-300 px-2.5 py-1 dark:border-zinc-700"
+        >
+          Retry this panel
+        </button>
+      )}
     </div>
   );
 }

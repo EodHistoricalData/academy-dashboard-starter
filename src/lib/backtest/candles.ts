@@ -44,7 +44,7 @@ export async function loadCandles(
   const result = await marketGet(`eod/${symbol}`, params, toBars);
 
   if (!result.ok) {
-    if (result.failure.kind === "unreachable" && result.failure.status === 404) {
+    if (result.failure.kind === "not-found") {
       const body = result.body as { error?: unknown } | string | null;
       return {
         notFound:

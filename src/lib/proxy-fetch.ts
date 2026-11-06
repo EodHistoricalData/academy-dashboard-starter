@@ -1,4 +1,5 @@
 import { type Bar, toBars } from "@/lib/backtest/bars";
+import { type Failure, failureFromStatus } from "@/lib/failure";
 import { toTriples } from "@/lib/filters";
 import type { ScreenConfig } from "@/lib/layout";
 import { quotesRequest } from "@/lib/quote-request";
@@ -20,6 +21,18 @@ export class ProxyError extends Error {
   ) {
     super(`proxy answered ${status}`);
   }
+}
+
+/**
+ * What a fetcher's error means. A 503 from the proxy that names EODHD_API_KEY is the
+ * missing key; anything thrown that is not a proxy answer is the network.
+ */
+export function failureOf(error: unknown): Failure {
+  if (error instanceof ProxyError) {
+    if (error.status === 503 && error.body.includes("EODHD_API_KEY")) return { kind: "no-key" };
+    return failureFromStatus(error.status, error.retryAfter, error.body);
+  }
+  return { kind: "unreachable", status: null };
 }
 
 async function getJson(path: string, params: Record<string, string> = {}): Promise<unknown> {

@@ -48,9 +48,10 @@ export function createMarketStore(
     now() - (cache.get(s)?.fetchedAt ?? -Infinity) < maxAgeMs;
 
   return {
-    async quotes(symbols: string[]): Promise<Fetched[]> {
+    /** `force` asks again even for rows younger than maxAge: a refresh someone pressed. */
+    async quotes(symbols: string[], force = false): Promise<Fetched[]> {
       for (const s of symbols) {
-        if (!fresh(s) && !pending.has(s)) pending.set(s, enqueue(s));
+        if ((force || !fresh(s)) && !pending.has(s)) pending.set(s, enqueue(s));
       }
       await Promise.all(symbols.map((s) => pending.get(s))); // shared, never repeated
       return symbols.flatMap((s) => cache.get(s) ?? []); // each with its fetchedAt
@@ -88,9 +89,9 @@ export function createRequestCache<T>(
   const inFlight = new Map<string, Promise<{ value: T; fetchedAt: number }>>();
 
   return {
-    get(key: string): Promise<{ value: T; fetchedAt: number }> {
+    get(key: string, force = false): Promise<{ value: T; fetchedAt: number }> {
       const hit = cache.get(key);
-      if (hit && now() - hit.fetchedAt < maxAgeMs) return Promise.resolve(hit);
+      if (!force && hit && now() - hit.fetchedAt < maxAgeMs) return Promise.resolve(hit);
       let pending = inFlight.get(key);
       if (!pending) {
         pending = fetcher(key)

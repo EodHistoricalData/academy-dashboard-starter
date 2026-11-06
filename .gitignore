@@ -52,3 +52,6 @@ next-env.d.ts
 
 # local caches: fetched price history and the backtest run log
 /.cache/
+
+# data the dashboard keeps on the server: the document store
+/.data/

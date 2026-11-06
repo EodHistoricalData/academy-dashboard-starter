@@ -8,5 +8,7 @@ export default defineConfig({
   test: {
     environment: "node",
     include: ["tests/**/*.test.ts"],
+    // The document store runs in memory under test: no file, nothing left behind.
+    env: { STORE_FILE: ":memory:" },
   },
 });

@@ -4,31 +4,44 @@ import Link from "next/link";
 import { useState } from "react";
 import type { Filter, Sort } from "@/lib/filters";
 import {
-  parseScreens,
   SCREENS_KEY,
   screenHref,
+  screensFrom,
   withoutScreen,
   withScreen,
 } from "@/lib/saved-screens";
-import { readStored, useStored, writeStored } from "@/lib/stored";
+import { type ServerDoc, statusLine, useDoc } from "@/lib/use-doc";
 
 /**
  * Save the screen on the page under a name, and reopen any saved one. Reopening is a
- * link to its address, so the screen runs again on today's data; nothing here fetches.
+ * link to its address, so the screen runs again on today's data; the market is not asked
+ * for anything here.
+ *
+ * Read from the server, with this browser's copy as the fallback when the server has none;
+ * written to both (step 1 of 3, see src/lib/use-doc.ts).
  */
 export function SavedScreens({
   filters,
   sort,
+  initial,
+  signedIn,
 }: {
   filters: Filter[];
   sort: Sort;
+  initial: ServerDoc;
+  signedIn: boolean;
 }) {
-  const screens = parseScreens(useStored(SCREENS_KEY));
+  const doc = useDoc({
+    docKey: "saved-screens",
+    localKey: SCREENS_KEY,
+    initial,
+    signedIn,
+  });
+  const screens = screensFrom(doc.raw);
   const [name, setName] = useState("");
   const names = Object.keys(screens).sort((a, b) => a.localeCompare(b));
-
-  const save = (next: ReturnType<typeof parseScreens>) =>
-    writeStored(SCREENS_KEY, JSON.stringify(next));
+  const save = doc.save;
+  const line = statusLine(doc.status);
 
   return (
     <section className="flex flex-col gap-2 text-sm">
@@ -46,9 +59,7 @@ export function SavedScreens({
               </Link>
               <button
                 type="button"
-                onClick={() =>
-                  save(withoutScreen(parseScreens(readStored(SCREENS_KEY)), n))
-                }
+                onClick={() => save(withoutScreen(screens, n))}
                 className="text-xs text-zinc-500 hover:text-zinc-900 dark:text-zinc-400 dark:hover:text-zinc-100"
               >
                 Delete
@@ -64,7 +75,7 @@ export function SavedScreens({
           const trimmed = name.trim();
           if (!trimmed) return;
           save(
-            withScreen(parseScreens(readStored(SCREENS_KEY)), {
+            withScreen(screens, {
               name: trimmed,
               filters,
               sort,
@@ -92,6 +103,11 @@ export function SavedScreens({
           Saves the filters, not the results.
         </span>
       </form>
+      {line && (
+        <p className="text-xs text-zinc-500 dark:text-zinc-400" role="status">
+          {line}
+        </p>
+      )}
     </section>
   );
 }

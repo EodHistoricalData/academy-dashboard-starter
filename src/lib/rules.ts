@@ -24,6 +24,14 @@ export type Rule = {
   enabled: boolean;
   lastFiredAt: number | null;
   lastValue: number | null;
+  /** Flap control. Minutes after firing before the rule may fire again. */
+  cooldownMin: number;
+  /** The level on the other side of the threshold the value must pass to re-arm. */
+  rearm: number;
+  /** False after firing, until the value has been back past `rearm`. */
+  armed: boolean;
+  /** Whether the condition held on the previous check: firing needs two in a row. */
+  heldLastCheck: boolean;
 };
 
 /** The seed: the rule from course 1, as a document. */
@@ -37,6 +45,10 @@ export const RULES: Rule[] = [
     enabled: true,
     lastFiredAt: null,
     lastValue: null,
+    cooldownMin: 60,
+    rearm: -0.25, // re-arms once the day's move has come back above −0.25%
+    armed: true,
+    heldLastCheck: false,
   },
 ];
 
@@ -67,32 +79,103 @@ export function parseRules(raw: unknown): Rule[] {
         enabled: r.enabled !== false,
         lastFiredAt: num(r.lastFiredAt),
         lastValue: num(r.lastValue),
+        // A document saved before flap control had none of these: start armed, at the
+        // threshold, with an hour's cooldown.
+        cooldownMin: num(r.cooldownMin) ?? 60,
+        rearm: num(r.rearm) ?? r.value,
+        armed: r.armed !== false,
+        heldLastCheck: r.heldLastCheck === true,
       },
     ];
   });
 }
 
+export type Verdict = {
+  fires: boolean;
+  nextLastValue: number | null;
+  /** The rest of the next state, when the guards are on. */
+  armed: boolean;
+  heldLastCheck: boolean;
+  lastFiredAt: number | null;
+  /** `${rule.id}:${observation timestamp}` for a firing, so a run seen twice fires once. */
+  key: string | null;
+};
+
 /**
- * Pure: a rule and an observation in, a verdict and the next state out. No clock, no I/O,
- * no notification. Equal is a decision, written down: for ">" a value exactly on the
- * threshold does not fire, and a crossing needs the previous value on the other side.
+ * Pure: a rule and an observation in, a verdict and the next state out. No I/O, no
+ * notification, and the time comes in as `at`. Equal is a decision, written down: for ">"
+ * a value exactly on the threshold does not fire, and a crossing needs the previous value
+ * on the other side.
+ *
+ * With `guards`, three mechanisms for three problems, checked in this order:
+ *   - debounce: the condition must hold on two checks in a row (removes one-tick noise);
+ *   - cooldown: not again within `cooldownMin` of the last firing (limits how often);
+ *   - hysteresis: after firing, disarmed until the value is back past `rearm` (changes the
+ *     condition, which is what actually stops flapping round a threshold).
+ * With the guards on, a crossing rule is its level: "crosses above 320" holds while above,
+ * and the hysteresis is what makes it fire once per crossing.
  */
 export function evaluate(
   rule: Rule,
   quote: Quote,
-): { fires: boolean; nextLastValue: number | null } {
+  opts: { at?: number; guards?: boolean } = {},
+): Verdict {
   const now = quote[rule.field];
-  if (typeof now !== "number") return { fires: false, nextLastValue: rule.lastValue };
-  const before = rule.lastValue;
-  const fires =
-    rule.op === ">"
-      ? now > rule.value
-      : rule.op === "<"
-        ? now < rule.value
-        : rule.op === "crosses_above"
-          ? before !== null && before <= rule.value && now > rule.value
-          : before !== null && before >= rule.value && now < rule.value; // crosses_below
-  return { fires, nextLastValue: now };
+  const unchanged = {
+    armed: rule.armed,
+    heldLastCheck: rule.heldLastCheck,
+    lastFiredAt: rule.lastFiredAt,
+    key: null,
+  };
+  if (typeof now !== "number") {
+    return { fires: false, nextLastValue: rule.lastValue, ...unchanged };
+  }
+  const at = opts.at ?? 0;
+
+  if (!opts.guards) {
+    const before = rule.lastValue;
+    const fires =
+      rule.op === ">"
+        ? now > rule.value
+        : rule.op === "<"
+          ? now < rule.value
+          : rule.op === "crosses_above"
+            ? before !== null && before <= rule.value && now > rule.value
+            : before !== null && before >= rule.value && now < rule.value; // crosses_below
+    return {
+      fires,
+      nextLastValue: now,
+      ...unchanged,
+      lastFiredAt: fires ? at : rule.lastFiredAt,
+      key: fires ? `${rule.id}:${quote.timestamp}` : null,
+    };
+  }
+
+  const holds = conditionHolds(rule, now); // the plain comparison
+  const confirmed = holds && rule.heldLastCheck; // debounce: two checks in a row
+  const cooled =
+    rule.lastFiredAt === null || at - rule.lastFiredAt >= rule.cooldownMin * 60_000;
+  const fires = rule.armed && confirmed && cooled;
+  // Hysteresis: once fired, stay disarmed until the price is back past the re-arm level.
+  const armed = fires ? false : rule.armed || pastRearm(rule, now);
+  return {
+    fires,
+    nextLastValue: now,
+    armed,
+    heldLastCheck: holds,
+    lastFiredAt: fires ? at : rule.lastFiredAt,
+    key: fires ? `${rule.id}:${quote.timestamp}` : null, // the loop will run twice
+  };
+}
+
+const isAbove = (rule: Rule) => rule.op === ">" || rule.op === "crosses_above";
+
+function conditionHolds(rule: Rule, now: number): boolean {
+  return isAbove(rule) ? now > rule.value : now < rule.value;
+}
+
+function pastRearm(rule: Rule, now: number): boolean {
+  return isAbove(rule) ? now < rule.rearm : now > rule.rearm;
 }
 
 export function fires(rule: Rule, q: Quote): boolean {

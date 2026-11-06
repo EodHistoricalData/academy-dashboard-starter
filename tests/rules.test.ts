@@ -27,6 +27,10 @@ const rule = (r: Pick<Rule, "ticker" | "field" | "op" | "value"> & Partial<Rule>
   enabled: true,
   lastFiredAt: null,
   lastValue: null,
+  cooldownMin: 60,
+  rearm: r.value,
+  armed: true,
+  heldLastCheck: false,
   ...r,
 });
 
@@ -52,7 +56,7 @@ describe("evaluate", () => {
   const below320 = rule({ ticker: "AAPL.US", field: "close", op: "crosses_below", value: 320 });
 
   it("crossing up: fires once, when the last value was at or under and this one is over", () => {
-    expect(evaluate({ ...above320, lastValue: 319.98 }, { ...aapl, close: 320.01 })).toEqual({
+    expect(evaluate({ ...above320, lastValue: 319.98 }, { ...aapl, close: 320.01 })).toMatchObject({
       fires: true,
       nextLastValue: 320.01,
     });
@@ -73,7 +77,7 @@ describe("evaluate", () => {
 
   it("a quote without the field does not fire and keeps the last value", () => {
     const busy = rule({ ticker: "AAPL.US", field: "volume", op: ">", value: 1, lastValue: 7 });
-    expect(evaluate(busy, { ...aapl, volume: null })).toEqual({ fires: false, nextLastValue: 7 });
+    expect(evaluate(busy, { ...aapl, volume: null })).toMatchObject({ fires: false, nextLastValue: 7 });
   });
 });
 

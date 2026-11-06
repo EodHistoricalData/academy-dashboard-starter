@@ -30,10 +30,9 @@ import {
 import type { Notes } from "@/lib/notes";
 import { panelState } from "@/lib/panel-state";
 import { type Needs, type PanelData, type PanelDef, unionNeeds } from "@/lib/panels";
-import { checkAll } from "@/lib/check-all";
-import type { Quote } from "@/lib/quotes";
+import { type Checked, checkAll, digest, nextRules } from "@/lib/check-all";
 import { isAvailable } from "@/lib/rows";
-import { alertText, type Rule, ruleSentence } from "@/lib/rules";
+import { type Rule, ruleSentence } from "@/lib/rules";
 import {
   eodViaProxy,
   failureOf,
@@ -120,7 +119,9 @@ export function Cockpit({
   const rulesNow = useRef(initialRules);
   const rulesSaved = useRef(rulesVersion);
   const rulesSaving = useRef<Promise<void>>(Promise.resolve());
-  const [fired, setFired] = useState<{ rule: Rule; quote: Quote }[]>([]);
+  const [checked, setChecked] = useState<Checked[]>([]);
+  // Keys of firings already shown, so a check run twice on the same data fires once.
+  const seen = useRef(new Set<string>());
   // Named layouts are one document, all of them here: switching is state, not a request.
   const [layouts, setLayouts] = useState<SavedLayouts>(initialLayouts);
   const [name, setName] = useState(initialName);
@@ -205,19 +206,10 @@ export function Cockpit({
       async (symbols) =>
         (await stores.quotes.quotes(symbols)).map((f) => f.row).filter(isAvailable),
       Date.now(),
+      { seen: seen.current },
     );
-    const next = current.map((r) => {
-      const c = results.find((x) => x.rule.id === r.id);
-      return c
-        ? { ...r, lastValue: c.nextLastValue, lastFiredAt: c.fires ? c.checkedAt : r.lastFiredAt }
-        : r;
-    });
-    setFired(
-      results.flatMap((c) => {
-        const row = stores.quotes.peek(c.rule.ticker)?.row;
-        return c.fires && row && isAvailable(row) ? [{ rule: c.rule, quote: row }] : [];
-      }),
-    );
+    const next = nextRules(current, results);
+    setChecked(results);
     if (JSON.stringify(next) === JSON.stringify(current)) return;
     rulesNow.current = next;
     setRules(next);
@@ -396,7 +388,7 @@ export function Cockpit({
           Refresh
         </button>
       </div>
-      <RulesList rules={rules} fired={fired} />
+      <RulesList rules={rules} checked={checked} />
       <div className="grid auto-rows-[minmax(8rem,auto)] grid-cols-1 gap-4 sm:grid-cols-4">
         {layout.panels.map((panel, i) => {
           const def = defOf(panel);
@@ -451,14 +443,13 @@ export function Cockpit({
   );
 }
 
-/** Every rule, as the sentence of what it watches, and what fired on the last check. */
-function RulesList({
-  rules,
-  fired,
-}: {
-  rules: Rule[];
-  fired: { rule: Rule; quote: Quote }[];
-}) {
+/**
+ * Every rule, as the sentence of what it watches, with the value it last saw and how far
+ * that is from the threshold: whether it is watching at all, without waiting for it to
+ * fire. Firings from one check arrive as one message.
+ */
+function RulesList({ rules, checked }: { rules: Rule[]; checked: Checked[] }) {
+  const message = digest(checked);
   return (
     <section className="flex flex-col gap-1 text-sm" aria-label="Rules">
       <h2 className="text-xs font-medium uppercase tracking-wide text-zinc-500 dark:text-zinc-400">
@@ -469,22 +460,35 @@ function RulesList({
       ) : (
         <ul className="flex flex-col gap-0.5">
           {rules.map((r) => (
-            <li key={r.id}>{ruleSentence(r)}</li>
+            <li key={r.id}>
+              {ruleSentence(r)}
+              <span className="text-zinc-500 tabular-nums dark:text-zinc-400">
+                {" · "}
+                {distanceLine(r)}
+              </span>
+            </li>
           ))}
         </ul>
       )}
-      {fired.length > 0 && (
-        <ul className="flex flex-col gap-0.5 font-medium tabular-nums">
-          {fired.map(({ rule, quote }) => (
-            <li key={rule.id}>Fired: {alertText(rule, quote)}</li>
-          ))}
-        </ul>
+      {message && (
+        <pre className="whitespace-pre-wrap font-sans font-medium tabular-nums">{message}</pre>
       )}
       <p className="text-xs text-zinc-500 dark:text-zinc-400">
         Rules are checked while this page is open.
       </p>
     </section>
   );
+}
+
+/** "now −0.67, 0.17 past the threshold": what the rule last saw, against what it waits for. */
+function distanceLine(rule: Rule): string {
+  if (rule.lastValue === null) return "not checked yet";
+  const gap = rule.lastValue - rule.value;
+  const past = rule.op === ">" || rule.op === "crosses_above" ? gap > 0 : gap < 0;
+  const fmt = (n: number) =>
+    `${n < 0 ? "−" : ""}${Math.abs(n).toLocaleString("en-US", { maximumFractionDigits: 2 })}`;
+  const state = rule.armed ? "" : ", waiting to re-arm";
+  return `now ${fmt(rule.lastValue)}, ${fmt(Math.abs(gap))} ${past ? "past" : "short of"} the threshold${state}`;
 }
 
 /** The small text at the right of a panel's title: its state, and the age of what it shows. */

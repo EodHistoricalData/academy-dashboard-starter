@@ -22,6 +22,10 @@ const rule = (id: string, ticker: string, op: Rule["op"], value: number): Rule =
   enabled: true,
   lastFiredAt: null,
   lastValue: null,
+  cooldownMin: 60,
+  rearm: value,
+  armed: true,
+  heldLastCheck: false,
 });
 
 const AT = Date.UTC(2026, 10, 6, 14, 32);
@@ -37,6 +41,7 @@ describe("checkAll", () => {
       [rule("a", "AAPL.US", ">", 320), rule("b", "AAPL.US", "<", 300)],
       fetchQuotes,
       AT,
+      { guards: false }, // the plain comparison; flap control is tests/flapping.test.ts
     );
     expect(asked).toEqual([["AAPL.US"]]);
     expect(results.map((r) => [r.rule.id, r.fires, r.nextLastValue, r.checkedAt])).toEqual([

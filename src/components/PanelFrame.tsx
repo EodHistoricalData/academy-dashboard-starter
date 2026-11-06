@@ -1,0 +1,40 @@
+import type { ReactNode } from "react";
+import type { Panel } from "@/lib/layout";
+
+/**
+ * Where a panel sits on the grid and the frame around it: its title, and whatever the
+ * container puts inside. The position comes from the layout document, not from JSX.
+ */
+export function PanelFrame({
+  panel,
+  children,
+  aside,
+}: {
+  panel: Panel;
+  children?: ReactNode;
+  /** Small text at the right of the title bar: the panel's age, its state. */
+  aside?: ReactNode;
+}) {
+  const { x, y, w, h } = panel.position;
+  return (
+    <section
+      aria-label={panel.title}
+      style={{ gridColumn: `${x + 1} / span ${w}`, gridRow: `${y + 1} / span ${h}` }}
+      className="flex min-w-0 flex-col rounded-lg border border-zinc-200 bg-white dark:border-zinc-800 dark:bg-zinc-900 max-sm:![grid-column:auto] max-sm:![grid-row:auto]"
+    >
+      <header className="flex items-baseline justify-between gap-3 border-b border-zinc-100 px-4 py-2.5 dark:border-zinc-800">
+        <h2 className="truncate text-sm font-medium">{panel.title}</h2>
+        <span className="shrink-0 text-xs text-zinc-500 dark:text-zinc-400">
+          {aside ?? panel.type}
+        </span>
+      </header>
+      <div className="min-h-24 flex-1 p-4 text-sm">
+        {panel.type === "placeholder" ? (
+          <p className="text-zinc-600 dark:text-zinc-400">{panel.config.reason}</p>
+        ) : (
+          children
+        )}
+      </div>
+    </section>
+  );
+}

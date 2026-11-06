@@ -1,6 +1,6 @@
 import Link from "next/link";
 
-type Route = "/" | "/screen" | "/backtest" | "/login";
+type Route = "/" | "/screen" | "/backtest" | "/dashboard" | "/login";
 
 /** A link per tool. A tool used by one person needs not to be a dead end, not a menu. */
 export function Nav({ here }: { here: Route }) {
@@ -19,6 +19,7 @@ export function Nav({ here }: { here: Route }) {
       {link("/", "Watchlist")}
       {link("/screen", "Screen")}
       {link("/backtest", "Backtest")}
+      {link("/dashboard", "Dashboard")}
     </nav>
   );
 }

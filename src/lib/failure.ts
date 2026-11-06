@@ -2,16 +2,18 @@
  * Why the watchlist came back without data.
  *
  * A market tool fails in four ways, and each has a different fix: no key, a key the API
- * rejected, a day's calls spent, and a ticker that does not exist. Two are not here: a
- * missing key is caught before anything is sent (the page checks the variable), and a bad
- * ticker is not a failure of the list, it fails its own row. The rest stop the whole
- * request, and the page names which one it was rather than saying "something went wrong"
- * over all of them.
+ * rejected, a day's calls spent, and a ticker that does not exist. The last one is not
+ * here, because it is not a failure of the list: it fails its own row. The rest stop the
+ * whole request, and the page names which one it was rather than saying "something went
+ * wrong" over all of them.
  *
  * 429 is kept apart from 402 on purpose. Both are limits, but a busy minute clears by
  * itself and a spent day does not, so waiting is right for one and useless for the other.
  */
 export type Failure =
+  /** The variable is not set, so nothing was sent. The API answers a missing key and a
+   *  wrong one with the same 401; only the tool can tell them apart. */
+  | { kind: "no-key" }
   /** 401: missing, revoked or mistyped key (the API cannot tell them apart). 403: the plan
    *  does not cover something in the request. */
   | { kind: "rejected"; status: 401 | 403 }

@@ -1,5 +1,5 @@
 import { estimateCalls } from "@/lib/cost";
-import { eodhdFetch } from "@/lib/eodhd";
+import { eodhdFetch, hasKey, isMock } from "@/lib/eodhd";
 import { type Failure, failureFromStatus } from "@/lib/failure";
 import { isAvailable, type Row, toRows } from "@/lib/rows";
 
@@ -68,6 +68,7 @@ export type QuotesResult = { rows: Row[] } | { failure: Failure };
 export async function quotes(tickers: string[]): Promise<QuotesResult> {
   const req = quotesRequest(tickers);
   if (req === null) return { rows: [] };
+  if (!isMock() && !hasKey()) return { failure: { kind: "no-key" } };
 
   try {
     const res = await eodhdFetch(req.path, req.params);

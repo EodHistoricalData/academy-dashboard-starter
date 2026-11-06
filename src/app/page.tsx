@@ -1,7 +1,7 @@
 import { Freshness } from "@/components/Freshness";
 import { WallMeter } from "@/components/WallMeter";
 import { Watchlist } from "@/components/Watchlist";
-import { isMock } from "@/lib/eodhd";
+import { hasKey, isMock } from "@/lib/eodhd";
 import type { Failure } from "@/lib/failure";
 import { account, ageMinutes, pageLoadCalls, quotes } from "@/lib/quotes";
 import { isAvailable } from "@/lib/rows";
@@ -13,15 +13,15 @@ export const dynamic = "force-dynamic";
 
 export default async function Home() {
   const mock = isMock();
-  const hasKey = Boolean(process.env.EODHD_API_KEY) || mock;
 
   // Two independent requests, so they go together rather than one waiting on the other.
+  // quotes() checks for the key itself and sends nothing without one.
   const [result, plan] = await Promise.all([
-    hasKey ? quotes(WATCHLIST) : Promise.resolve(null),
-    hasKey ? account() : Promise.resolve(null),
+    quotes(WATCHLIST),
+    mock || hasKey() ? account() : Promise.resolve(null),
   ]);
-  const rows = result && "rows" in result ? result.rows : null;
-  const failure = result && "failure" in result ? result.failure : null;
+  const rows = "rows" in result ? result.rows : null;
+  const failure = "failure" in result ? result.failure : null;
 
   const priced = rows?.filter(isAvailable) ?? [];
   const asOf =
@@ -41,9 +41,11 @@ export default async function Home() {
 
         {mock && <MockMode />}
 
-        {!hasKey && <NoKey />}
+        {failure?.kind === "no-key" && <NoKey />}
 
-        {failure && <CallFailed failure={failure} />}
+        {failure && failure.kind !== "no-key" && (
+          <CallFailed failure={failure} />
+        )}
 
         {/* No wrapping section with a hidden "Watchlist" heading: the h1 above already
             says it and the table carries its own caption, so that made three announcements
@@ -141,7 +143,11 @@ function MockMode() {
   );
 }
 
-function CallFailed({ failure }: { failure: Failure }) {
+function CallFailed({
+  failure,
+}: {
+  failure: Exclude<Failure, { kind: "no-key" }>;
+}) {
   const { title, steps } = explain(failure);
   return (
     // Each failure names itself and the next step. "Something went wrong" over all of
@@ -157,7 +163,7 @@ function CallFailed({ failure }: { failure: Failure }) {
   );
 }
 
-function explain(failure: Failure): {
+function explain(failure: Exclude<Failure, { kind: "no-key" }>): {
   title: string;
   steps: React.ReactNode[];
 } {

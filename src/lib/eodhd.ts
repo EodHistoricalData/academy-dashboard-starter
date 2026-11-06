@@ -16,6 +16,11 @@ function eodhdKey(): string {
   return key;
 }
 
+/** Whether a key is set at all. Says nothing about whether the API will accept it. */
+export function hasKey(): boolean {
+  return Boolean(process.env.EODHD_API_KEY);
+}
+
 /**
  * Mock mode: EODHD_MOCK=1 in .env.local. Every request is answered from the JSON files in
  * fixtures/ and nothing goes over the network, so it costs no calls and needs no key.

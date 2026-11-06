@@ -1,17 +1,46 @@
 "use client";
 
-import { useState } from "react";
+import { createContext, type ReactNode, useContext, useState } from "react";
 import {
-  parseShortlist,
   SHORTLIST_KEY,
   type Shortlist as List,
+  shortlistFrom,
   withoutPick,
   withPick,
 } from "@/lib/shortlist";
-import { readStored, useStored, writeStored } from "@/lib/stored";
+import { type ServerDoc, statusLine, useDoc } from "@/lib/use-doc";
 
-function save(next: List) {
-  writeStored(SHORTLIST_KEY, JSON.stringify(next));
+type ShortlistDoc = { list: List; save(next: List): void; line: string | null };
+
+const ShortlistContext = createContext<ShortlistDoc | null>(null);
+
+/**
+ * One shortlist document for the cells in the table and the panel beside it: read from the
+ * server, this browser's copy as the fallback, written to both (step 1 of 3).
+ */
+export function ShortlistProvider({
+  initial,
+  signedIn,
+  children,
+}: {
+  initial: ServerDoc;
+  signedIn: boolean;
+  children: ReactNode;
+}) {
+  const doc = useDoc({ docKey: "shortlist", localKey: SHORTLIST_KEY, initial, signedIn });
+  return (
+    <ShortlistContext
+      value={{ list: shortlistFrom(doc.raw), save: doc.save, line: statusLine(doc.status) }}
+    >
+      {children}
+    </ShortlistContext>
+  );
+}
+
+function useShortlist(): ShortlistDoc {
+  const doc = useContext(ShortlistContext);
+  if (!doc) throw new Error("Shortlist used outside ShortlistProvider");
+  return doc;
 }
 
 /**
@@ -19,7 +48,7 @@ function save(next: List) {
  * the reason is the artefact, the ticker is not.
  */
 export function ShortlistCell({ code }: { code: string }) {
-  const list = parseShortlist(useStored(SHORTLIST_KEY));
+  const { list, save } = useShortlist();
   const [open, setOpen] = useState(false);
   const [note, setNote] = useState("");
 
@@ -44,7 +73,7 @@ export function ShortlistCell({ code }: { code: string }) {
         e.preventDefault();
         if (note.trim() === "") return;
         const day = new Date().toISOString().slice(0, 10);
-        save(withPick(parseShortlist(readStored(SHORTLIST_KEY)), code, note, day));
+        save(withPick(list, code, note, day));
       }}
     >
       <input
@@ -68,7 +97,7 @@ export function ShortlistCell({ code }: { code: string }) {
 
 /** The shortlist itself: each name with the sentence that put it there. */
 export function ShortlistPanel() {
-  const list = parseShortlist(useStored(SHORTLIST_KEY));
+  const { list, save, line } = useShortlist();
   const picks = Object.values(list).sort((a, b) => a.code.localeCompare(b.code));
 
   return (
@@ -92,7 +121,7 @@ export function ShortlistPanel() {
               <button
                 type="button"
                 onClick={() =>
-                  save(withoutPick(parseShortlist(readStored(SHORTLIST_KEY)), p.code))
+                  save(withoutPick(list, p.code))
                 }
                 className="ml-auto shrink-0 text-xs text-zinc-500 hover:text-zinc-900 dark:text-zinc-400 dark:hover:text-zinc-100"
               >
@@ -103,8 +132,13 @@ export function ShortlistPanel() {
         </ul>
       )}
       <p className="text-xs text-zinc-500 dark:text-zinc-400">
-        What I was thinking, kept in this browser. Not a recommendation.
+        What I was thinking, saved with my account. Not a recommendation.
       </p>
+      {line && (
+        <p className="text-xs text-zinc-500 dark:text-zinc-400" role="status">
+          {line}
+        </p>
+      )}
     </section>
   );
 }

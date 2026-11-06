@@ -1,113 +1,73 @@
+import { type Column, DataTable } from "@/components/DataTable";
 import { NoteField } from "@/components/NoteField";
-import type { Quote } from "@/lib/quotes";
-import { isAvailable, type Row as WatchlistRow } from "@/lib/rows";
+import { isAvailable, type Row } from "@/lib/rows";
 
 /**
- * The watchlist itself: one row per ticker, ordered exactly as the learner wrote them in
- * src/lib/watchlist.ts. Deliberately not sorted by movement — a tool that reorders itself
- * by "biggest mover" is making a suggestion, and this one has no opinion.
+ * The watchlist's columns. The table itself is the shared one in DataTable.tsx; what makes
+ * this the watchlist is here: last price, the move since the previous close with its sign,
+ * volume, and my note.
  */
-export function Watchlist({ rows }: { rows: WatchlistRow[] }) {
-  return (
-    <table className="w-full border-collapse text-sm tabular-nums sm:whitespace-nowrap">
-      <caption className="sr-only">
-        Your watchlist: last price and change since the previous close.
-      </caption>
-      <thead>
-        <tr className="border-b border-zinc-200 text-xs font-medium uppercase tracking-wide text-zinc-500 dark:text-zinc-400 dark:border-zinc-800">
-          <th scope="col" className="py-2 text-left">
-            Ticker
-          </th>
-          <th scope="col" className="py-2 text-right">
-            Last
-          </th>
-          <th scope="col" className="py-2 text-right">
-            Change
-          </th>
-          <th scope="col" className="hidden py-2 text-right sm:table-cell">
-            Volume
-          </th>
-          <th scope="col" className="hidden py-2 pl-6 text-left sm:table-cell">
-            Note
-          </th>
-        </tr>
-      </thead>
-      <tbody>
-        {rows.map((r) =>
-          isAvailable(r) ? (
-            <Row key={r.code} quote={r} />
-          ) : (
-            <UnavailableRow key={r.code} code={r.code} />
-          ),
-        )}
-      </tbody>
-    </table>
-  );
-}
-
-function Row({ quote }: { quote: Quote }) {
-  const up = quote.change > 0;
-  const down = quote.change < 0;
-
-  return (
-    <tr className="border-b border-zinc-100 last:border-0 dark:border-zinc-900">
-      <th
-        scope="row"
-        className="py-2.5 text-left font-medium text-zinc-900 dark:text-zinc-100"
-      >
-        {quote.code}
-      </th>
-      <td className="py-2.5 text-right text-zinc-900 dark:text-zinc-100">
-        {fmt(quote.close)}
-      </td>
-      <td
-        className={`py-2.5 text-right ${
-          up
-            ? "text-emerald-700 dark:text-emerald-400"
-            : down
-              ? "text-red-700 dark:text-red-400"
-              : "text-zinc-600 dark:text-zinc-400"
-        }`}
-      >
-        {/* The sign carries the direction, so the meaning survives a colour-blind reader,
-            a bad screen and a greyscale print. Colour is the second signal, never the
-            only one. */}
-        {signed(quote.change)}{" "}
-        <span className="text-zinc-500 dark:text-zinc-400">
-          ({signed(quote.change_p)}%)
-        </span>
-      </td>
-      <td className="hidden py-2.5 text-right text-zinc-500 dark:text-zinc-400 sm:table-cell">
-        {quote.volume === null ? "—" : quote.volume.toLocaleString("en-US")}
-      </td>
-      <td className="hidden py-1.5 pl-6 sm:table-cell">
-        <NoteField code={quote.code} />
-      </td>
-    </tr>
-  );
-}
+const COLUMNS: Column<Row>[] = [
+  { key: "code", label: "Ticker", render: (r) => r.code },
+  {
+    key: "close",
+    label: "Last",
+    align: "right",
+    render: (r) => (isAvailable(r) ? fmt(r.close) : null),
+  },
+  {
+    key: "change",
+    label: "Change",
+    align: "right",
+    // The sign carries the direction, so the meaning survives a colour-blind reader, a
+    // bad screen and a greyscale print. Colour is the second signal.
+    render: (r) =>
+      isAvailable(r)
+        ? `${signed(r.change)} (${signed(r.change_p)}%)`
+        : "unavailable",
+    tone: (r) =>
+      !isAvailable(r) || r.change === 0 ? null : r.change > 0 ? "up" : "down",
+  },
+  {
+    key: "volume",
+    label: "Volume",
+    align: "right",
+    render: (r) =>
+      isAvailable(r) && r.volume !== null
+        ? r.volume.toLocaleString("en-US")
+        : null,
+  },
+  {
+    key: "note",
+    label: "Note",
+    render: () => null,
+    input: (r) => <NoteField code={r.code} />,
+  },
+];
 
 /**
- * A ticker the API answered for with no prices: not a symbol it knows, or not one this
- * plan covers. It keeps its place in the list so the gap is visible, instead of the row
- * quietly disappearing.
+ * The watchlist itself, in the order it is handed (see SortedWatchlist). A ticker the API
+ * had no prices for keeps its row, marked unavailable, and the line under the table says
+ * what that means.
  */
-function UnavailableRow({ code }: { code: string }) {
+export function Watchlist({ rows }: { rows: Row[] }) {
+  const unavailable = rows.some((r) => !isAvailable(r));
   return (
-    <tr className="border-b border-zinc-100 last:border-0 dark:border-zinc-900">
-      <th
-        scope="row"
-        className="py-2.5 text-left font-medium text-zinc-900 dark:text-zinc-100"
-      >
-        {code}
-      </th>
-      <td colSpan={3} className="py-2.5 text-right text-zinc-500 dark:text-zinc-400">
-        Unavailable: unknown ticker, or not in your plan
-      </td>
-      <td className="hidden py-1.5 pl-6 sm:table-cell">
-        <NoteField code={code} />
-      </td>
-    </tr>
+    <div className="flex flex-col gap-2">
+      <DataTable
+        columns={COLUMNS}
+        rows={rows}
+        rowKey={(r) => r.code}
+        caption="Your watchlist: last price and change since the previous close."
+        empty="Nothing to show."
+      />
+      {unavailable && (
+        <p className="text-xs text-zinc-500 dark:text-zinc-400">
+          Unavailable: the API had no prices for that symbol. An unknown ticker,
+          or one your plan does not cover.
+        </p>
+      )}
+    </div>
   );
 }
 

@@ -67,6 +67,15 @@ export function screenCalls(screen: Screen): number {
   return estimateCalls(req.path, req.params) ?? 0;
 }
 
+/**
+ * What one view of the screen page spends: the screen, plus reading the plan for the
+ * meter, which is free. Worked out from the requests the page sends, so a fetch added
+ * later shows up here and in the test that pins this number.
+ */
+export function screenPageCalls(screen: Screen): number {
+  return screenCalls(screen) + (estimateCalls("user") ?? 0);
+}
+
 export type ScreenResult =
   | { rows: ScreenRow[] }
   /** The API refused the filters and said which part, in its `errors` envelope. */

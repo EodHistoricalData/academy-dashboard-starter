@@ -13,6 +13,7 @@ const report = buildReport({
   pulledAt: "2026-11-06T09:00:00.000Z",
   paramSetsTried: 3,
   statedOn: "6 November 2026",
+  source: "mock fixture",
 });
 
 describe("the generated report", () => {
@@ -38,6 +39,11 @@ describe("the generated report", () => {
     expect(report).toContain('"slippageBps": 5');
     expect(report).toContain("according to the run log: 3");
     expect(report).toMatch(/15 parameter sets tried/);
+  });
+
+  it("says when its prices are the mock's invented ones", () => {
+    expect(report).toContain("mock fixture");
+    expect(report).toContain("not market data");
   });
 
   it("states the history it had, and the regimes it did not", () => {

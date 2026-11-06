@@ -1,9 +1,9 @@
 #!/usr/bin/env node
 // After a deploy: does anything the browser loads talk to EODHD directly?
 //
-//   node scripts/check-network.mjs https://your-app.vercel.app
+//   node scripts/check-network.mjs https://your-app.vercel.app https://your-app.vercel.app/screen
 //
-// Loads the page, then every script it pulls in from the same site, and fails if any of
+// Loads each page, then every script it pulls in from the same site, and fails if any of
 // them contains an EODHD API address or an `api_token` parameter. A request from the
 // browser to eodhd.com needs that address in code the browser runs, so finding none means
 // every market request goes through your own /api/proxy.
@@ -36,18 +36,20 @@ export function scriptUrls(html, pageUrl) {
   return [...new Set(urls)];
 }
 
-async function main(pageUrl) {
-  const page = await fetch(pageUrl);
-  if (!page.ok) throw new Error(`${pageUrl} answered ${page.status}`);
-  const html = await page.text();
-
+async function main(pageUrls) {
   const found = [];
   const check = (where, text) => {
     for (const hit of findDirectCalls(text)) found.push(`${where}: ${hit}`);
   };
-  check(pageUrl, html);
 
-  const scripts = scriptUrls(html, pageUrl);
+  const scripts = new Set();
+  for (const pageUrl of pageUrls) {
+    const page = await fetch(pageUrl);
+    if (!page.ok) throw new Error(`${pageUrl} answered ${page.status}`);
+    const html = await page.text();
+    check(pageUrl, html);
+    for (const url of scriptUrls(html, pageUrl)) scripts.add(url);
+  }
   for (const url of scripts) {
     const res = await fetch(url);
     if (res.ok) check(url, await res.text());
@@ -60,16 +62,18 @@ async function main(pageUrl) {
     );
     process.exit(1);
   }
-  console.log(`Clean: the page and ${scripts.length} scripts carry no direct EODHD call.`);
+  console.log(
+    `Clean: ${pageUrls.length} pages and ${scripts.size} scripts carry no direct EODHD call.`,
+  );
 }
 
 if (import.meta.url === pathToFileURL(process.argv[1] ?? "").href) {
-  const url = process.argv[2];
-  if (!url) {
-    console.error("Usage: node scripts/check-network.mjs <deployed page URL>");
+  const urls = process.argv.slice(2);
+  if (urls.length === 0) {
+    console.error("Usage: node scripts/check-network.mjs <page URL> [<page URL> ...]");
     process.exit(2);
   }
-  main(url).catch((error) => {
+  main(urls).catch((error) => {
     console.error(error instanceof Error ? error.message : error);
     process.exit(1);
   });

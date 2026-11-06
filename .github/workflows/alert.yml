@@ -16,6 +16,12 @@
 #
 # After every run the job commits alerts/state.json back, so the next run, on a fresh
 # machine, knows what was already judged and sent. Pull before you work: main moves.
+#
+# Then it pings a dead man's switch (Healthchecks.io): success only when the run did its
+# work and the state was saved, /fail with the one-line reason otherwise. Silence from this
+# job looks exactly like a quiet market, so the check that notices lives outside GitHub.
+# Store its ping URL as the HEARTBEAT_URL secret; it is a secret because whoever holds it
+# can say all is well. Without it the two steps say so and send nothing.
 name: Alert
 
 on:
@@ -73,4 +79,22 @@ jobs:
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
           git add alerts/state.json
           git diff --cached --quiet || git commit -m "chore(alert): state after run"
-          git push
+          git push || { echo "state not saved: git push failed" >> alert-outcome.txt; exit 1; }
+      # After the state step, never before: a run that failed to save its state must not
+      # report success.
+      - name: Heartbeat
+        if: success()
+        run: |
+          if [ -z "$HEARTBEAT_URL" ]; then echo "::warning::HEARTBEAT_URL is not set: no heartbeat sent."; exit 0; fi
+          curl -fsS -m 10 "$HEARTBEAT_URL"
+        env:
+          HEARTBEAT_URL: ${{ secrets.HEARTBEAT_URL }}
+      # The reason as the body: one line, never a token or a price. If the job died before
+      # writing it, this ping fails too, and the check still goes down after its grace time.
+      - name: Heartbeat, failed
+        if: failure()
+        run: |
+          if [ -z "$HEARTBEAT_URL" ]; then echo "::warning::HEARTBEAT_URL is not set: no failure ping sent."; exit 0; fi
+          curl -fsS -m 10 --data-binary @alert-outcome.txt "$HEARTBEAT_URL/fail"
+        env:
+          HEARTBEAT_URL: ${{ secrets.HEARTBEAT_URL }}

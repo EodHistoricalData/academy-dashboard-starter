@@ -19,6 +19,7 @@ const FLAT = bars(["2026-10-29", 248.9], ["2026-10-30", 251.32]);
 /** One run against a fake API and a fake channel. Nothing here reads a clock or a network. */
 function harness(data: Record<string, Bar[] | Error>, failSends = 0) {
   const sent: { message: Message; key: string }[] = [];
+  const digests: string[] = [];
   let failuresLeft = failSends;
   const fetchBars = vi.fn(async (symbol: string) => {
     const answer = data[symbol];
@@ -27,7 +28,9 @@ function harness(data: Record<string, Bar[] | Error>, failSends = 0) {
   });
   const send = vi.fn(async (message: Message, key: string) => {
     if (failuresLeft-- > 0) throw new Error("delivery failed: telegram, HTTP 502");
-    sent.push({ message, key });
+    // 2026-10-30 is a Friday: the "still watching" digest is counted on its own.
+    if (key.startsWith("digest:")) digests.push(key);
+    else sent.push({ message, key });
   });
   const saved: State[] = [];
   // 17:30 in New York on the given date (EDT until 2026-11-01, EST after).
@@ -41,7 +44,7 @@ function harness(data: Record<string, Bar[] | Error>, failSends = 0) {
       save: async (s) => void saved.push(structuredClone(s)),
       log: () => {},
     });
-  return { run, fetchBars, send, sent, saved };
+  return { run, fetchBars, send, sent, saved, digests };
 }
 
 describe("an idempotent alert run", () => {

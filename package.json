@@ -15,7 +15,8 @@
     "check:leak": "node scripts/check-leak.mjs",
     "prepare": "git config core.hooksPath .githooks || echo Git hooks not installed: this is not a git checkout.",
     "alert": "tsx scripts/alert.ts",
-    "alert:local": "tsx --env-file=.env.local scripts/alert.ts"
+    "alert:local": "tsx --env-file=.env.local scripts/alert.ts",
+    "alert:cost": "tsx scripts/alert-cost.ts"
   },
   "dependencies": {
     "next": "16.4.5",

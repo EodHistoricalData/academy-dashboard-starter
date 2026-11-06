@@ -1,20 +1,43 @@
 import { DataTable } from "@/components/DataTable";
 import { Code, CallFailed, MockMode, NoKey } from "@/components/Notices";
+import { ScreenForm } from "@/components/ScreenForm";
 import { WallMeter } from "@/components/WallMeter";
 import { hasKey, isMock } from "@/lib/eodhd";
 import { account } from "@/lib/quotes";
 import { SCREEN_COLUMNS } from "@/lib/screen-columns";
-import { MY_SCREEN, screen, screenAsOf, screenCalls } from "@/lib/screens";
+import { DEFAULT_SORT, parseFilterParam, safeSort, toTriples } from "@/lib/filters";
+import {
+  MY_FILTERS,
+  PAGE_LIMIT,
+  type Screen,
+  screen,
+  screenAsOf,
+  screenCalls,
+} from "@/lib/screens";
 
 // A screen runs on the server, on every load, through eodhdFetch: the key never leaves it.
 export const dynamic = "force-dynamic";
 
 export const metadata = { title: "Screen · Market tool starter" };
 
-export default async function ScreenPage() {
+export default async function ScreenPage({
+  searchParams,
+}: {
+  searchParams: Promise<{ [key: string]: string | string[] | undefined }>;
+}) {
+  const query = await searchParams;
+  // The address is input from a stranger: every filter in it is checked, and what fails is
+  // dropped and named below rather than quietly fixed.
+  const { filters, dropped } =
+    typeof query.f === "string"
+      ? parseFilterParam(query.f)
+      : { filters: MY_FILTERS, dropped: [] };
+  const sort = safeSort(query.sort) ?? DEFAULT_SORT;
+  const current: Screen = { filters: toTriples(filters), sort, limit: PAGE_LIMIT };
+
   const mock = isMock();
   const [result, plan] = await Promise.all([
-    screen(MY_SCREEN),
+    screen(current),
     mock || hasKey() ? account() : Promise.resolve(null),
   ]);
   const rows = "rows" in result ? result.rows : null;
@@ -26,13 +49,26 @@ export default async function ScreenPage() {
         <header className="flex flex-col gap-1">
           <h1 className="text-lg font-semibold tracking-tight">Screen</h1>
           <p className="text-sm text-zinc-600 dark:text-zinc-400">
-            Market cap over $10B · earnings per share above zero · US exchanges
-            · largest first, top 20. These match my filters; that is all they
-            are.
+            US exchanges, top {PAGE_LIMIT} by {sort}. These match the filters;
+            that is all they are.
           </p>
         </header>
 
         {mock && <MockMode />}
+
+        <ScreenForm key={`${query.f}|${sort}`} filters={filters} sort={sort} />
+
+        {dropped.length > 0 && (
+          <p className="text-sm text-amber-900 dark:text-amber-200">
+            Dropped from the address, not on this screener’s list:{" "}
+            {dropped.map((d, i) => (
+              <span key={d}>
+                {i > 0 && ", "}
+                <Code>{d}</Code>
+              </span>
+            ))}
+          </p>
+        )}
 
         {"failure" in result &&
           (result.failure.kind === "no-key" ? (
@@ -60,7 +96,8 @@ export default async function ScreenPage() {
               <p className="text-xs text-zinc-600 dark:text-zinc-400">
                 As of {asOf}, the last completed session, not live prices.
                 Earnings and yield are as old as each company’s latest filing.
-                Loss-making companies are excluded by the earnings filter.
+                A company missing a field a filter uses is excluded, the same as
+                one that fails it.
               </p>
             )}
             <DataTable
@@ -76,7 +113,7 @@ export default async function ScreenPage() {
         <div className="border-t border-zinc-200 pt-8 dark:border-zinc-800 sm:w-1/2">
           <WallMeter
             account={plan}
-            pageCalls={screenCalls(MY_SCREEN)}
+            pageCalls={screenCalls(current)}
             mock={mock}
             basis="one screener request, however many rows"
           />

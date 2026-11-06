@@ -1,5 +1,6 @@
 import { estimateCalls } from "@/lib/cost";
 import type { Failure } from "@/lib/failure";
+import { DEFAULT_SORT, type Filter, toTriples } from "@/lib/filters";
 import { marketGet } from "@/lib/market";
 
 /** One row of a screen, narrowed from what /screener sends. */
@@ -32,14 +33,18 @@ export type Screen = {
  * is also what keeps funds and indices out of the universe (see PLAN.md), and it drops
  * loss-makers, which the page says.
  */
+export const MY_FILTERS: Filter[] = [
+  { field: "market_capitalization", op: ">", value: 10_000_000_000 },
+  { field: "earnings_share", op: ">", value: 0 },
+];
+
+/** Rows per screen on the page. Not a control: the proxy clamps whatever a caller asks. */
+export const PAGE_LIMIT = 20;
+
 export const MY_SCREEN: Screen = {
-  filters: [
-    ["market_capitalization", ">", 10_000_000_000],
-    ["earnings_share", ">", 0],
-    ["exchange", "=", "us"],
-  ],
-  sort: "market_capitalization.desc",
-  limit: 20,
+  filters: toTriples(MY_FILTERS),
+  sort: DEFAULT_SORT,
+  limit: PAGE_LIMIT,
 };
 
 export function screenRequest(screen: Screen): {

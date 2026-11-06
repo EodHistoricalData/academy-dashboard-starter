@@ -1,5 +1,6 @@
 import { estimateCalls } from "@/lib/cost";
 import { eodhdFetch, isMock, redactKey } from "@/lib/eodhd";
+import { checkScreenerQuery } from "@/lib/filters";
 
 /**
  * The endpoints the proxy will sign with your key and forward. Everything else is a 404.
@@ -51,10 +52,23 @@ export async function proxy(
   const refusal = refuse(segments);
   if (refusal) return refusal;
 
-  const params: Record<string, string> = {};
+  let params: Record<string, string> = {};
   for (const [key, value] of query.entries()) {
     if (key.toLowerCase() === "api_token") continue; // caller cannot set the token
     params[key] = value;
+  }
+
+  // The screener is where a person's input reaches a request made with the key. Its query
+  // is rebuilt from checked values: fields and operators from a fixed list, limit clamped.
+  if (segments[0] === "screener") {
+    const checked = checkScreenerQuery(params);
+    if ("error" in checked) {
+      return Response.json(
+        { error: checked.error },
+        { status: 400, headers: { "cache-control": "no-store" } },
+      );
+    }
+    params = checked.params;
   }
 
   const target = segments.map(encodeURIComponent).join("/");

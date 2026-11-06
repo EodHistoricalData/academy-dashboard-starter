@@ -148,6 +148,52 @@ describe("upstream status", () => {
   });
 });
 
+describe("the screener's input", () => {
+  const filters = (triples: unknown) =>
+    `screener?filters=${encodeURIComponent(JSON.stringify(triples))}`;
+
+  it("refuses a field that is not on the list, without asking upstream", async () => {
+    const fetchMock = upstream('{"data":[]}');
+    const res = await call(filters([["password", "=", "x"]]));
+    expect(res.status).toBe(400);
+    expect((await res.json()).error).toMatch(/Filter 1 is not one this screener allows/);
+    expect(fetchMock).not.toHaveBeenCalled();
+  });
+
+  it("refuses an operator that is not on the list", async () => {
+    const fetchMock = upstream('{"data":[]}');
+    const res = await call(filters([["market_capitalization", "LIKE", 1]]));
+    expect(res.status).toBe(400);
+    expect(fetchMock).not.toHaveBeenCalled();
+  });
+
+  it("clamps limit=100000 to 100 before it goes upstream", async () => {
+    const fetchMock = upstream('{"data":[]}');
+    const res = await call(
+      `${filters([["market_capitalization", ">", 1e9]])}&limit=100000`,
+    );
+    expect(res.status).toBe(200);
+    expect(requestedUrl(fetchMock).searchParams.get("limit")).toBe("100");
+  });
+
+  it("forwards only the query it built: checked filters, the universe, sort, limit", async () => {
+    const fetchMock = upstream('{"data":[]}');
+    await call(
+      `${filters([["earnings_share", ">", 0]])}&signals=x&offset=900&api_token=fake`,
+    );
+    const sent = requestedUrl(fetchMock).searchParams;
+    expect(JSON.parse(sent.get("filters")!)).toEqual([
+      ["earnings_share", ">", 0],
+      ["exchange", "=", "us"],
+    ]);
+    expect(sent.get("sort")).toBe("market_capitalization.desc");
+    expect(sent.get("limit")).toBe("25");
+    expect(sent.has("signals")).toBe(false);
+    expect(sent.has("offset")).toBe(false);
+    expect(sent.get("api_token")).toBe(FAKE_KEY);
+  });
+});
+
 describe("coalescing", () => {
   it("sends identical concurrent requests upstream once", async () => {
     let release!: () => void;

@@ -164,3 +164,22 @@ a choice to you, the section for that unit says which one we made. Yours can dif
 - `fixtures/real-time.json` gains GOOGL.US and AMZN.US, so a name added from the screen shows
   prices in mock mode.
 - `PLAN.md` ends with what was awkward about the join, as the brief for course 4.
+
+## Backtest Strategies · unit 1: The Research Sandbox
+
+- `PLAN.md`: the one honest sentence, every blank filled, written before any code.
+- Data: `fixtures/eod/SPY.US.json`, one year of daily bars, the depth of the free plan.
+  Invented prices in the API's shape, with four dividends in `adjusted_close`; the last bar
+  matches the real-time fixture. We chose SPY because a single index fund has no
+  survivorship problem worth the name (unit 3 says why that matters).
+- Candles: `src/lib/backtest/candles.ts` loads through the same transport as the watchlist
+  and the screen, narrows a bare array of bars, asserts oldest-first, and caches the whole
+  history on disk under `.cache/eod/` with the date it was pulled (gitignored; skipped in
+  mock mode). `src/lib/market.ts` now keeps a plain-text error body as text, so an unknown
+  ticker shows "Ticker Not Found." instead of a JSON parse error.
+- Returns: `src/lib/backtest/returns.ts` on `adjusted_close`, compounded by multiplying;
+  `parseSplit` for the splits endpoint's string ratio. `tests/returns.test.ts` uses the
+  lesson's five AAPL bars across the 2020 split.
+- The control: `/backtest` draws buy and hold with the net-of-cost line on at 0 bps, and
+  three numbers under it (`src/lib/backtest/baseline.ts`, `metrics.ts`). The chart is a
+  server-drawn SVG (`src/components/EquityChart.tsx`), so no chart library is added.

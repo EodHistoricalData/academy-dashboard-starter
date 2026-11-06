@@ -1,5 +1,6 @@
 import { DataTable } from "@/components/DataTable";
 import { Code, CallFailed, MockMode, NoKey } from "@/components/Notices";
+import { SavedScreens } from "@/components/SavedScreens";
 import { ScreenForm } from "@/components/ScreenForm";
 import { WallMeter } from "@/components/WallMeter";
 import { hasKey, isMock } from "@/lib/eodhd";
@@ -57,6 +58,8 @@ export default async function ScreenPage({
         {mock && <MockMode />}
 
         <ScreenForm key={`${query.f}|${sort}`} filters={filters} sort={sort} />
+
+        <SavedScreens filters={filters} sort={sort} />
 
         {dropped.length > 0 && (
           <p className="text-sm text-amber-900 dark:text-amber-200">

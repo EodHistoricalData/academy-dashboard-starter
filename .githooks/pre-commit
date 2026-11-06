@@ -1,0 +1,22 @@
+#!/usr/bin/env sh
+# Runs before every commit. Turned on by `npm install` (package.json "prepare" sets
+# core.hooksPath to this folder). Seconds, not minutes: the slow checks are in pre-push.
+
+set -eu
+
+# 1. Nothing shaped like an EODHD key in the lines being added.
+sh scripts/precommit-key-guard.sh
+
+# 2. Lint the staged files that ESLint reads. Only those: a commit should not fail for a
+# file it does not touch.
+files=$(git diff --cached --name-only --diff-filter=ACMR -- '*.ts' '*.tsx' '*.js' '*.jsx' '*.mjs' '*.cjs' '*.mts')
+[ -z "$files" ] && exit 0
+
+set --
+while IFS= read -r f; do
+  [ -n "$f" ] && set -- "$@" "$f"
+done <<LIST
+$files
+LIST
+
+npx --no-install eslint --max-warnings=0 -- "$@"

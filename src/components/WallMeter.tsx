@@ -10,12 +10,34 @@ import type { Account } from "@/lib/quotes";
  * distance to the wall is visible at a glance, and the exact figures are written out
  * beside it because a bar alone cannot be read precisely or by a screen reader.
  */
-export function WallMeter({ account }: { account: Account | null }) {
+export function WallMeter({
+  account,
+  pageCalls,
+  mock,
+}: {
+  account: Account | null;
+  /** What one load of this page spends; see pageLoadCalls in src/lib/quotes.ts. */
+  pageCalls: number;
+  mock: boolean;
+}) {
+  // The price of a reload, beside the balance it comes out of. "12 left" means little
+  // until you know a reload costs 5.
+  const cost = (
+    <p className="text-xs tabular-nums text-zinc-600 dark:text-zinc-400">
+      {mock
+        ? `This load cost nothing. Live, it would cost ${calls(pageCalls)}.`
+        : `Each load of this page costs ${calls(pageCalls)}: one per ticker.`}
+    </p>
+  );
+
   if (!account) {
     return (
-      <p className="text-xs text-zinc-500 dark:text-zinc-400">
-        Could not read your plan. The watchlist above may still be working.
-      </p>
+      <div className="flex flex-col gap-2">
+        <p className="text-xs text-zinc-500 dark:text-zinc-400">
+          Could not read your plan. The watchlist above may still be working.
+        </p>
+        {cost}
+      </div>
     );
   }
 
@@ -66,6 +88,11 @@ export function WallMeter({ account }: { account: Account | null }) {
           This plan did not report a daily limit.
         </p>
       )}
+      {cost}
     </div>
   );
+}
+
+function calls(n: number): string {
+  return `${n.toLocaleString("en-US")} ${n === 1 ? "call" : "calls"}`;
 }

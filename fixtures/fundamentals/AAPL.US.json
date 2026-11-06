@@ -1,0 +1,43 @@
+{
+  "General": {
+    "Code": "AAPL",
+    "Type": "Common Stock",
+    "Name": "Apple Inc",
+    "Exchange": "NASDAQ",
+    "CurrencyCode": "USD",
+    "CurrencyName": "US Dollar",
+    "CurrencySymbol": "$",
+    "CountryName": "USA",
+    "CountryISO": "US",
+    "Sector": "Technology",
+    "Industry": "Consumer Electronics",
+    "FiscalYearEnd": "September",
+    "IPODate": "1980-12-12"
+  },
+  "Highlights": {
+    "MarketCapitalization": 3729000000000,
+    "PERatio": 33.8,
+    "PEGRatio": 2.41,
+    "EarningsShare": 7.43,
+    "DividendShare": 1.04,
+    "DividendYield": 0.0042,
+    "ProfitMargin": 0.2431,
+    "OperatingMarginTTM": 0.3187,
+    "ReturnOnEquityTTM": 1.4962,
+    "RevenueTTM": 416200000000,
+    "MostRecentQuarter": "2026-09-30"
+  },
+  "Valuation": {
+    "TrailingPE": 33.8,
+    "ForwardPE": 30.2,
+    "PriceSalesTTM": 8.96,
+    "PriceBookMRQ": 50.4,
+    "EnterpriseValue": 3771000000000
+  },
+  "SharesStats": {
+    "SharesOutstanding": 14838000000,
+    "SharesFloat": 14810000000,
+    "PercentInsiders": 1.7,
+    "PercentInstitutions": 63.9
+  }
+}

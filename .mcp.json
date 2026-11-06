@@ -1,0 +1,8 @@
+{
+  "mcpServers": {
+    "eodhd": {
+      "type": "http",
+      "url": "https://mcp.eodhd.com/v2/mcp"
+    }
+  }
+}

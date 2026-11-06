@@ -23,6 +23,19 @@ Open http://localhost:3000. If the key is missing the page says so and tells you
 
 A free key is at [eodhd.com/register](https://eodhd.com/register).
 
+Node 20.9 or later; `.nvmrc` pins 22 for `nvm use`. `npm install` also points git at the hooks in `.githooks/` (see [below](#keeping-your-key-out-of-git)).
+
+### Mock mode: work without spending calls
+
+```bash
+# in .env.local
+EODHD_MOCK=1
+```
+
+Restart the dev server. Every request is now answered from the JSON files in `fixtures/`, nothing goes over the network, and no key is needed. The page says it is in mock mode at the top, because invented numbers that look live are worse than none.
+
+Use it while you iterate. The free plan is 20 calls a day and the default page costs 5 per load, so four reloads of a layout you are still adjusting spend the day. Switch it off to check against live data once the code is right. To mock a request the fixtures do not cover, add `fixtures/<endpoint>/<SYMBOL>.json`; `fixtures/README.md` has the details.
+
 ### Deploying
 
 The Vercel button above clones this repo and asks for `EODHD_API_KEY` during setup. Nothing else is needed. If you deploy some other way, set the same variable in your host's environment; it must **not** be prefixed `NEXT_PUBLIC_`, or the framework will helpfully ship it to the browser.
@@ -31,10 +44,13 @@ The Vercel button above clones this repo and asks for `EODHD_API_KEY` during set
 
 | Path | What it does |
 |---|---|
-| `src/lib/eodhd.ts` | The only place the API key is read. Server-only. |
-| `src/app/api/proxy/[...path]/route.ts` | Every market call goes through here. Any `api_token` the caller supplies is dropped, so the browser cannot use your key and cannot substitute another. |
-| `src/app/api/usage/route.ts` | Your plan and how many calls you have made today, as JSON. |
+| `src/lib/eodhd.ts` | The only place the API key is read. Server-only. Also where mock mode switches in. |
+| `src/app/api/proxy/[...path]/route.ts` | Every market request from the browser goes through here. The rules are in `src/lib/proxy.ts`. |
+| `src/lib/cost.ts` | What each endpoint costs in API calls, and `estimateCalls()` to work out a request before you send it. |
+| `src/app/api/usage/route.ts` | Your plan, how many calls you have made today, and what one page load costs, as JSON. |
 | `src/lib/watchlist.ts` | Your tickers. **This is the file to edit first.** |
+| `fixtures/` | What mock mode answers with. |
+| `tests/` | The proxy's rules and the cost table, checked by `npm test`. |
 
 Try `/api/proxy/eod/AAPL.US` and `/api/usage` in the browser once it is running.
 
@@ -42,7 +58,24 @@ Try `/api/proxy/eod/AAPL.US` and `/api/usage` in the browser once it is running.
 
 Because the alternative is calling EODHD from the browser, which means shipping your key to every visitor. Free keys get scraped from public bundles within days. The proxy exists so that "make it look nice" and "keep the key safe" are not the same decision.
 
-The build is checked for this: running the production build with the key in the environment, the key's value appears in no file under `.next`, client chunks included. Worth re-checking if you change how data is fetched.
+What it does with a request:
+
+- **Forwards only the endpoints the course uses**: `eod`, `real-time`, `div`, `splits`, `fundamentals`, `screener`, `news`, `technical`, `intraday`, `search`, `exchange-symbol-list`. Anything else is a 404 that says so. `/user` in particular is refused: its answer carries your e-mail address, and `/api/usage` already gives you the useful part. Need another endpoint? Add it to `ALLOWED_ENDPOINTS` in `src/lib/proxy.ts`, and its cost to `src/lib/cost.ts`.
+- **Drops any `api_token` the caller supplies**, so the browser cannot use your key and cannot substitute another.
+- **Passes EODHD's status and body through**, because the body of a 403 is the only place that says which feed your plan is missing. Your key is cut out of any body that echoes it back.
+- **Tells the two limits apart.** A spent day comes back as 402 (it resets at midnight GMT; retrying sooner only fails again), too many requests in one minute as 429 with `Retry-After`. Each with a sentence saying what happened, rather than an empty table.
+- **Sends identical requests that arrive together upstream once.** Two tabs opened at the same moment cost one request, not two.
+- **Says what each request cost**, in an `x-eodhd-calls` response header.
+
+### Checking the build does not leak the key
+
+```bash
+npm run check:leak
+```
+
+Builds the app with a made-up key in the environment, then fails if that value appears in any file the build produces under `.next`, server and browser chunks alike. It also plants the value in `NEXT_PUBLIC_EODHD_API_KEY`, the classic way to ship a key to every visitor by accident. Run it whenever you change how data is fetched; the pre-push hook and CI run it for you.
+
+One thing it deliberately does not scan: `.next/cache`. Since Next.js 16.3 the build cache there records the values of the environment variables your code reads, the key included, so it can tell when to rebuild. That folder is never served and is not what you deploy, but it is a copy of the key on disk. It is gitignored; do not copy the whole `.next` folder to a server.
 
 ## Two things the page tells you that most dashboards do not
 
@@ -50,23 +83,65 @@ The build is checked for this: running the production build with the key in the 
 
 **How much of today's quota you have spent.** From the first minute, not from the day you hit the wall. A limit you meet only by hitting it is a limit that breaks your tool without warning, usually on the morning you first rely on it.
 
-The whole watchlist costs **one** API call regardless of length, because quotes are fetched in a single multi-symbol request. What burns quota is how often you reload, not how many tickers you watch.
+### What a page load costs
+
+An API *request* is not an API *call*. Calls are the currency your daily quota is counted in, and endpoints charge different amounts per request: `eod` is 1 however many rows it returns, `fundamentals` is 10, and `real-time` is 1 **per ticker**.
+
+The watchlist is fetched in a single multi-symbol request, and that request costs one call for every ticker in it. The default five tickers are five calls per load, which on the free plan's 20 a day is four reloads. Both the length of the list and how often you reload spend quota. The page shows what one load costs beside the meter, worked out by `src/lib/cost.ts` from the request the page actually sends; reading your plan for the meter is free.
 
 ## Building on it
 
 Everything is a server component; there is no client-side JavaScript in the default build. Add some when you need it, and see `PRODUCT.md` for the design decisions already made, including why this page deliberately has no motion and what the rules are if you add any.
 
-If you use an AI assistant, point it at the [EODHD MCP server](https://eodhd.com/financial-apis/mcp-server) first. It lets the assistant query the real API while writing your code, which is the difference between wiring that works and wiring that looks plausible.
+### Done means green
+
+```bash
+npm test             # the proxy's rules and the cost table; no key, no network
+npm run check:leak   # the build does not contain the key
+npm run lint
+npm run typecheck
+```
+
+A change is finished when these pass, not when the page looks right. `npm test` runs in seconds and needs no key, so run it often.
+
+## Using it with Claude Code
+
+The course uses [Claude Code](https://code.claude.com/docs) as its coding agent. This repo is already set up for it:
+
+- `AGENTS.md` (which `CLAUDE.md` imports) gives the agent the rules of this codebase: market data only through the proxy, mock mode while iterating, the cost of a new request stated before it is written, `npm test && npm run check:leak` as the definition of done.
+- `.claude/settings.json` stops the agent reading `.env`, `.env.local` and the other files Next.js loads secrets from. It cannot stop a script the agent runs from reading them, so the rule in `AGENTS.md` is the other half.
+- `.mcp.json` connects the agent to the [EODHD MCP server](https://eodhd.com/financial-apis/mcp-server), which lets it query the real API while writing your code. That is the difference between wiring that works and wiring that looks plausible.
+
+Install Claude Code by following [the official setup guide](https://code.claude.com/docs/en/setup), then start it in this folder:
+
+```bash
+cd academy-dashboard-starter
+claude
+```
+
+The first time, it asks whether to trust the folder and whether to use the `eodhd` server from `.mcp.json`; say yes to both. Then type `/mcp`, choose `eodhd`, and sign in with your EODHD account in the browser window it opens. The server uses OAuth: **there is no key in `.mcp.json`**, and you should never put one there.
+
+For EODHD's skills and slash commands as well, install the official plugin from inside Claude Code:
+
+```
+/plugin marketplace add EodHistoricalData/eodhd-claude-skills
+/plugin install eodhd-api@eodhd-claude-skills
+```
+
+Its commands are namespaced: `/eodhd-api:eodhd-analyze AAPL`, not `/eodhd-analyze`. The plugin connects the same MCP server; the entry in this repo's `.mcp.json` takes precedence over the plugin's copy, so you sign in once.
+
+**MCP calls spend the same quota.** A question the agent answers through the MCP server is billed in API calls exactly as your app's requests are, against the same daily limit. On the free plan's 20 a day, one fundamentals lookup is half of it. Ask the agent to work on fixtures (`EODHD_MOCK=1`) and to say what a live call will cost before making one.
+
+The prompts the course uses are in [`prompts/`](prompts/).
 
 ## Keeping your key out of git
 
-`.env.local` is gitignored. There is also a pre-commit hook that refuses a commit staging anything shaped like a key:
+`.env.local` is gitignored. The repo also ships git hooks in `.githooks/`, and `npm install` turns them on (it runs `git config core.hooksPath .githooks`; nothing to copy):
 
-```bash
-cp scripts/precommit-key-guard.sh .git/hooks/pre-commit && chmod +x .git/hooks/pre-commit
-```
+- **pre-commit** refuses a commit staging anything shaped like a key (`scripts/precommit-key-guard.sh`), then lints the staged files.
+- **pre-push** runs `npm test`, the type check and `npm run check:leak`, the same checks CI runs on a pull request.
 
-It is a seatbelt, not a lock: it cannot see a key you never staged, and it cannot see one already in your history. If a key does reach a public repo, rotate it. Removing the commit is not enough.
+The hooks are a seatbelt, not a lock: they cannot see a key you never staged, and they cannot see one already in your history. If a key does reach a public repo, rotate it. Removing the commit is not enough.
 
 ## Licence and data use
 

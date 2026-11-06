@@ -1,0 +1,10 @@
+{
+  "name": "Mock Learner",
+  "email": "learner@example.com",
+  "subscriptionType": "free",
+  "paymentMethod": "Not Available",
+  "apiRequests": 0,
+  "apiRequestsDate": "2026-10-30",
+  "dailyRateLimit": 20,
+  "extraLimit": 0
+}

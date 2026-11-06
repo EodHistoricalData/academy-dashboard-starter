@@ -164,3 +164,13 @@ positive.
 Universe: SPY.US alone. The course counted 18,012 live US common stocks against 32,854
 delisted (2026-08-25); a stock-picking version of this rule would have to include the dead
 and say so. A single index fund has them inside it instead.
+
+### Unit 4: the split, predicted before it is run
+
+Split by date before touching anything: in-sample 2025-10-31 to the bar at 70% of the year,
+out-of-sample the rest. Tune 15 pairs (fast 10–30, slow 40–60) in-sample only, then run
+the winner once.
+
+Prediction, written before the out-of-sample run: the in-sample winner will beat the
+20/50 defaults in-sample, and out-of-sample it will make between −2% and +3% net,
+below buy and hold on the same stretch.

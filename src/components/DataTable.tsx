@@ -32,10 +32,16 @@ export function DataTable<T>({
   rowKey,
   caption,
   empty,
+  onRowClick,
+  selectedKey,
 }: {
   columns: Column<T>[];
   rows: T[];
   rowKey: (row: T) => string;
+  /** Clicking a row's first cell reports the row; the caller decides what that means. */
+  onRowClick?: (row: T) => void;
+  /** The row to mark as selected, by its key. */
+  selectedKey?: string | null;
   /** Read by screen readers; the visible heading is the page's. */
   caption: string;
   /** Why there is nothing to show, in a sentence. */
@@ -66,11 +72,26 @@ export function DataTable<T>({
           {rows.map((row) => (
             <tr
               key={rowKey(row)}
-              className="border-b border-zinc-100 last:border-0 dark:border-zinc-900"
+              aria-selected={onRowClick ? selectedKey === rowKey(row) : undefined}
+              className="border-b border-zinc-100 last:border-0 aria-selected:bg-zinc-100 dark:border-zinc-900 dark:aria-selected:bg-zinc-800"
             >
               {columns.map((c, i) => {
                 const className = `px-3 py-2.5 first:pl-0 last:pr-0 ${alignOf(c)} ${toneOf(c, row, i)}`;
-                const content = c.input ? c.input(row) : cell(c.render(row));
+                const text = c.input ? c.input(row) : cell(c.render(row));
+                // The first cell is the row's button when rows can be picked, so a keyboard
+                // reaches it and a screen reader announces it.
+                const content =
+                  i === 0 && onRowClick ? (
+                    <button
+                      type="button"
+                      onClick={() => onRowClick(row)}
+                      className="underline-offset-2 hover:underline"
+                    >
+                      {text}
+                    </button>
+                  ) : (
+                    text
+                  );
                 // The first column names the row, for anyone listening to the table.
                 return i === 0 ? (
                   <th key={c.key} scope="row" className={className}>

@@ -16,7 +16,11 @@ import { account } from "@/lib/quotes";
 import { myTickers } from "@/lib/my-tickers";
 import { getDoc } from "@/lib/store";
 import { currentUser } from "@/lib/user";
-import { SCREEN_COLUMNS, watchlistColumn } from "@/lib/screen-columns";
+import {
+  SCREEN_COLUMNS,
+  shortlistColumn,
+  watchlistColumn,
+} from "@/lib/screen-columns";
 import { DEFAULT_SORT, parseFilterParam, safeSort, toTriples } from "@/lib/filters";
 import {
   MY_FILTERS,
@@ -132,7 +136,7 @@ export default async function ScreenPage({
                 </p>
               )}
               <DataTable
-                columns={[...SCREEN_COLUMNS, watchlistColumn(watching)]}
+                columns={[...SCREEN_COLUMNS, shortlistColumn, watchlistColumn(watching)]}
                 rows={rows}
                 rowKey={(r) => r.code}
                 caption="Companies matching the screen, largest first."

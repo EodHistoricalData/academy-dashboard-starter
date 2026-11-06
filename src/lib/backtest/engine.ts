@@ -76,9 +76,14 @@ export type Run = {
  * never as a total at the end and never for holding. An open position is closed, and
  * charged, at the last bar's close, or its return is never realised.
  */
-export function backtest(bars: Bar[], params: Params): Run {
+export function backtest(
+  bars: Bar[],
+  params: Params,
+  /** Start trading no earlier than this bar; signals still read the bars before it. */
+  opts: { startAt?: number } = {},
+): Run {
   const signal = signals(bars, params);
-  const start = params.slow - 1;
+  const start = Math.max(params.slow - 1, opts.startAt ?? 0);
   if (bars.length <= start) {
     return {
       dates: [],

@@ -24,12 +24,15 @@ export const SCREENS_KEY = "screens-v1";
  * a filter not on the list is dropped whole rather than run as something else.
  */
 export function parseScreens(raw: string | null): SavedScreens {
-  let value: unknown;
   try {
-    value = JSON.parse(raw ?? "{}");
+    return screensFrom(JSON.parse(raw ?? "{}"));
   } catch {
     return {};
   }
+}
+
+/** The same checks on a value already parsed: the server's copy arrives as JSON. */
+export function screensFrom(value: unknown): SavedScreens {
   if (value === null || typeof value !== "object" || Array.isArray(value)) {
     return {};
   }

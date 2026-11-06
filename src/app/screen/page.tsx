@@ -1,6 +1,12 @@
 import { DataTable } from "@/components/DataTable";
 import { Nav } from "@/components/Nav";
-import { Code, CallFailed, MockMode, NoKey } from "@/components/Notices";
+import {
+  CallFailed,
+  Code,
+  MockMode,
+  NoKey,
+  UserLine,
+} from "@/components/Notices";
 import { SavedScreens } from "@/components/SavedScreens";
 import { ShortlistPanel } from "@/components/Shortlist";
 import { ScreenForm } from "@/components/ScreenForm";
@@ -8,6 +14,8 @@ import { WallMeter } from "@/components/WallMeter";
 import { hasKey, isMock } from "@/lib/eodhd";
 import { account } from "@/lib/quotes";
 import { myTickers } from "@/lib/my-tickers";
+import { getDoc } from "@/lib/store";
+import { currentUser } from "@/lib/user";
 import { SCREEN_COLUMNS, watchlistColumn } from "@/lib/screen-columns";
 import { DEFAULT_SORT, parseFilterParam, safeSort, toTriples } from "@/lib/filters";
 import {
@@ -41,6 +49,8 @@ export default async function ScreenPage({
 
   const mock = isMock();
   const { list: watching } = await myTickers();
+  const user = await currentUser();
+  const savedScreens = user ? getDoc(user.id, "saved-screens") : null;
   const [result, plan] = await Promise.all([
     screen(current),
     mock || hasKey() ? account() : Promise.resolve(null),
@@ -64,8 +74,15 @@ export default async function ScreenPage({
 
         <ScreenForm key={`${query.f}|${sort}`} filters={filters} sort={sort} />
 
+        <UserLine user={user} />
+
         <div className="grid gap-8 sm:grid-cols-2">
-          <SavedScreens filters={filters} sort={sort} />
+          <SavedScreens
+            filters={filters}
+            sort={sort}
+            initial={savedScreens}
+            signedIn={user !== null}
+          />
           <ShortlistPanel />
         </div>
 

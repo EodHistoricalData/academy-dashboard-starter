@@ -140,3 +140,35 @@ export function Code({ children }: { children: React.ReactNode }) {
     </code>
   );
 }
+
+/**
+ * Who the documents on this page belong to. Said whenever it is not a real sign-in, so an
+ * assumed user never looks like an account.
+ */
+export function UserLine({
+  user,
+}: {
+  user: { id: number; assumed: boolean } | null;
+}) {
+  if (user && !user.assumed) return null;
+  return (
+    <p className="text-xs text-zinc-500 dark:text-zinc-400">
+      {user ? (
+        <>
+          Mock mode with no <Code>DASHBOARD_PASSWORD</Code>: saving as user 1
+          without a sign-in. Set a password and <Code>SESSION_SECRET</Code> to
+          sign in for real.
+        </>
+      ) : (
+        <>
+          Not signed in: what you save stays in this browser.{" "}
+          <a href="/login" className="underline underline-offset-2">
+            Sign in
+          </a>{" "}
+          to keep it on the server.
+        </>
+      )}
+    </p>
+  );
+}
+

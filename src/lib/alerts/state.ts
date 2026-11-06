@@ -18,6 +18,8 @@ export type State = {
   symbols: Record<string, string>;
   /** Per firing, keyed "<rule id>:<bar date>": the run's own time is nowhere in it. */
   keys: Record<string, KeyRecord>;
+  /** The Friday trading date the last "still watching" digest went out for. */
+  digest?: string;
 };
 
 export const STATE_FILE = "alerts/state.json";
@@ -57,7 +59,8 @@ export function markSent(state: State, keys: string[], date: string): void {
 export function parseState(data: unknown): State {
   const state = emptyState();
   if (data === null || typeof data !== "object") return state;
-  const { symbols, keys } = data as Record<string, unknown>;
+  const { symbols, keys, digest } = data as Record<string, unknown>;
+  if (typeof digest === "string") state.digest = digest;
 
   if (symbols && typeof symbols === "object") {
     for (const [symbol, date] of Object.entries(symbols)) {
@@ -90,6 +93,10 @@ export async function loadState(file: string): Promise<State> {
 export async function saveState(file: string, state: State): Promise<void> {
   const sorted = (o: Record<string, unknown>) =>
     Object.fromEntries(Object.entries(o).sort(([a], [b]) => a.localeCompare(b)));
-  const out = { symbols: sorted(state.symbols), keys: sorted(state.keys) };
+  const out = {
+    symbols: sorted(state.symbols),
+    keys: sorted(state.keys),
+    ...(state.digest ? { digest: state.digest } : {}),
+  };
   await writeFile(file, `${JSON.stringify(out, null, 2)}\n`);
 }

@@ -1,6 +1,7 @@
 import { createHash } from "node:crypto";
 import { newYorkDate, tradingDate } from "@/lib/alerts/clock";
 import { alertMessage, type Message } from "@/lib/alerts/deliver";
+import { digestMessage, isFriday } from "@/lib/alerts/digest";
 import { evaluate, type Bar } from "@/lib/alerts/evaluate";
 import { FetchError } from "@/lib/alerts/retry";
 import type { Rule } from "@/lib/alerts/rules";
@@ -42,6 +43,7 @@ export type RunResult = {
  *  3. Fetch the rest, and judge every bar newer than the last one judged, oldest first,
  *     so a missed Monday is caught up on Tuesday under Monday's key.
  *  4. Mark new firings pending and save, send one message, mark them sent and save.
+ *  5. On a Friday, once, a digest from the state alone: the job is still watching.
  *
  * Send, then record: if the job dies between the two, the next run sends again. A rare
  * duplicate is the price of never losing an alert.
@@ -72,8 +74,23 @@ export async function runAlerts(deps: RunDeps): Promise<RunResult> {
   const due = symbols.filter((s) => state.symbols[s] !== today);
   if (due.length === 0) {
     log(`nothing new since ${today}: 0 calls`);
-    return result;
+  } else {
+    await judge(deps, due, result);
   }
+
+  // 5. Once per Friday, and only after the work above succeeded.
+  if (isFriday(today) && state.digest !== today) {
+    await deps.send(digestMessage(rules, state, today), `digest:${today}`);
+    state.digest = today;
+    await save(state);
+    log(`digest sent: still watching, week of ${today}`);
+  }
+  return result;
+}
+
+/** Steps 3 and 4: fetch what is due, judge every new bar, send one message. */
+async function judge(deps: RunDeps, due: string[], result: RunResult): Promise<void> {
+  const { rules, state, save, log } = deps;
 
   // 3. Fetch what is due. One symbol failing does not cost the others their answers; a 402
   // stops the lot, because every further request would meet it too.
@@ -132,7 +149,7 @@ export async function runAlerts(deps: RunDeps): Promise<RunResult> {
     log("nothing to send: no rule fired on a new bar");
   } else {
     await deps.send(message, idempotencyKey(keys));
-    markSent(state, keys, sentOn);
+    markSent(state, keys, newYorkDate(deps.now));
     await save(state);
     result.sent.push(...keys);
   }
@@ -140,7 +157,6 @@ export async function runAlerts(deps: RunDeps): Promise<RunResult> {
   if (failures.length > 0) {
     throw new FetchError(failures.map((f) => f.message).join(" "), failures[0].status);
   }
-  return result;
 }
 
 function side(rule: Rule): string {

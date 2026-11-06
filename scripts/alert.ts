@@ -1,13 +1,18 @@
 // End-of-day price alert. Reads alerts/rules.json, says what the run costs, fetches one
 // end-of-day series per symbol not yet judged today, and sends one message for what fired.
+// Then it decides the outcome: ok, or failed with a one-line reason in alert-outcome.txt
+// and a non-zero exit, which is what the workflow's heartbeat reports.
 //
 //   EODHD_MOCK=1 npm run alert     answers from fixtures/, 0 calls
 //   npm run alert:local            the same, with the variables in .env.local
 //
 // Run through tsx: plain Node does not resolve the starter's `@/` import alias.
 
+import { unlink, writeFile } from "node:fs/promises";
+import { tradingDate } from "@/lib/alerts/clock";
 import { deliver, deliveryChannel } from "@/lib/alerts/deliver";
 import type { Bar } from "@/lib/alerts/evaluate";
+import { failureReason, OUTCOME_FILE, staleness, type Outcome } from "@/lib/alerts/outcome";
 import { sleep, withRetry } from "@/lib/alerts/retry";
 import { readRules, type Rule } from "@/lib/alerts/rules";
 import { runAlerts } from "@/lib/alerts/run";
@@ -69,6 +74,29 @@ async function main(now: Date): Promise<void> {
   if (result.fetched.length > 0) {
     console.log(`spent: ${spent} calls on ${requests} request${requests === 1 ? "" : "s"}`);
   }
+
+  // Every symbol answered; now, is what it answered current?
+  const today = tradingDate(now);
+  if (today === null) return;
+  if (mock) {
+    console.log("mock mode: the fixtures' dates are fixed, so freshness is not checked");
+    return;
+  }
+  const stale = staleness(symbols, state.symbols, today);
+  if (stale) throw new Error(stale);
+}
+
+/** Print the outcome and leave it where the workflow's failure ping can send it. */
+async function finish(outcome: Outcome): Promise<void> {
+  if (outcome.ok) {
+    await unlink(OUTCOME_FILE).catch(() => {});
+    console.log("outcome: ok");
+    return;
+  }
+  const reason = redactKey(outcome.reason);
+  await writeFile(OUTCOME_FILE, `${reason}\n`);
+  console.error(`outcome: failed: ${reason}`);
+  process.exitCode = 1;
 }
 
 function rulesFor(rules: Rule[], symbol: string): string {
@@ -90,7 +118,7 @@ function toBars(body: unknown): Bar[] {
 }
 
 // The clock is read here, once, and passed down.
-main(new Date()).catch((error: unknown) => {
-  console.error(redactKey(error instanceof Error ? error.message : String(error)));
-  process.exitCode = 1;
-});
+main(new Date()).then(
+  () => finish({ ok: true }),
+  (error: unknown) => finish({ ok: false, reason: failureReason(error) }),
+);

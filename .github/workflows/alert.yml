@@ -6,7 +6,12 @@
 # every hour is when GitHub delays, and sometimes drops, scheduled runs.
 #
 # A schedule runs only from the default branch, and a fork starts with Actions off: enable
-# them in the fork's Actions tab. Mock mode for now: no calls spent, no secrets needed.
+# them in the fork's Actions tab.
+#
+# Live: each run spends one call per distinct symbol in alerts/rules.json and sends one
+# Telegram message when a rule fires. It needs three repository secrets, which you type
+# yourself (`gh secret set NAME`): EODHD_API_KEY, TELEGRAM_BOT_TOKEN, TELEGRAM_CHAT_ID.
+# Without them the run fails at its start, naming the missing one, before any call.
 name: Alert
 
 on:
@@ -37,6 +42,10 @@ jobs:
           node-version-file: .nvmrc
           cache: npm
       - run: npm ci
+      # The secrets go into this step's environment and no other.
       - run: npm run alert
         env:
-          EODHD_MOCK: "1"
+          ALERT_DELIVERY: telegram
+          EODHD_API_KEY: ${{ secrets.EODHD_API_KEY }}
+          TELEGRAM_BOT_TOKEN: ${{ secrets.TELEGRAM_BOT_TOKEN }}
+          TELEGRAM_CHAT_ID: ${{ secrets.TELEGRAM_CHAT_ID }}

@@ -15,6 +15,7 @@ The person you are working for is learning. They have 20 API calls a day on the 
 5. **State the cost before you write a fetch.** Before adding or changing any request to EODHD, say how many API calls it spends per page load (use `estimateCalls()` in `src/lib/cost.ts`) and wait for a yes if it is more than a handful. The same goes for questions you answer through the EODHD MCP server: they spend the same quota.
 6. **Done means green:** `npm test && npm run check:leak` pass, plus `npm run lint` and `npm run typecheck`. A page that looks right is not done. A behaviour change comes with a test in `tests/`; write the test first when you can.
 7. **Small steps, one commit each.** One change, its test, a commit with a plain message, then the next. Never `--no-verify`: if a hook fails, fix what it found.
+8. **Run the alert job in mock mode only.** `EODHD_MOCK=1 npm run alert`, with `ALERT_DELIVERY` unset or `console`. Never call a delivery API (Telegram, Resend) with real credentials, and never run `npm run alert:local`, which loads `.env.local` and whatever is in it. The live run is the person's.
 
 ## Traps found in this repo
 

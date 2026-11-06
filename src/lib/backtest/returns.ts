@@ -1,4 +1,4 @@
-import type { Bar } from "@/lib/backtest/candles";
+import type { Bar } from "@/lib/backtest/bars";
 
 /** The two close columns, named, so nobody has to guess which one a number came from. */
 export type CloseColumn = "adjusted_close" | "close";

@@ -1,4 +1,4 @@
-import type { FilterTriple } from "@/lib/screens";
+import type { FilterTriple } from "@/lib/screen-query";
 
 /**
  * Filters are values, and the set of things a person may screen on is written down here.

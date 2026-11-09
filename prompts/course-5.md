@@ -30,8 +30,10 @@ Mock mode on, plan mode on, and paste:
 ```
 Rewrite README.md in this order: what it is and who it is for, from
 the first line of PLAN.md; one screenshot at docs/screenshot.png; run
-it in five commands, numbered, with no prose between them; what you
-need first, a free EODHD API key and where to get one; what it does;
+it in five commands, numbered, with no prose between them except on
+the configure step, which says what to set in .env.local: the key, or
+EODHD_MOCK=1 to run on fixtures; what you need first, a free EODHD API
+key and where to get one; what it does;
 what it does not do; how it works; and the licence, for the code and
 separately for the data. Answer every question in the Shipping backlog
 that belongs in a README. Under "What it does not do", list each limit
@@ -52,7 +54,8 @@ sentence naming EODHD_API_KEY, the file to copy, and mock mode. Empty
 and the old placeholder your_key_here are not real values. Call it from
 register() in src/instrumentation.ts and throw its sentence; read this
 Next.js version's guide in node_modules/next/dist/docs/ first. Remove
-the page's own no-key branch, which can no longer be reached. In
+the home page's own no-key branch in src/app/page.tsx, which can no
+longer be reached. In
 .env.example, empty the key line and list every variable the code
 reads, with its default. Tests first. Do not open .env.local. Done
 means npm test, npm run typecheck, npm run lint and npm run check:leak
@@ -86,7 +89,10 @@ Add one step at the end of the checks job in
 when any .ts or .tsx file under src other than src/lib/eodhd.ts
 contains EODHD_API_KEY, printing each offending line. Keep it the only
 command in its step. Run the same command here and show me what it
-prints, then npm test, npm run typecheck, npm run lint and
+prints. For each line, tell me whether it reads the key or only names
+it in a sentence; a read moves into src/lib/eodhd.ts, a sentence stops
+naming the variable, until the command prints nothing. Then run
+npm test, npm run typecheck, npm run lint and
 npm run check:leak. Do not push and do not open a pull request: I do
 that. Then show me the diff.
 ```
@@ -118,8 +124,9 @@ with tests written first. Per address: at most 30 requests a minute,
 the address taken from the x-forwarded-for header, which the proxy
 route passes in; past that, 429 with Retry-After and a sentence. Per
 day: before any upstream request, read today's count the way the usage
-route does, cached for a minute, and refuse with 402 and a sentence
-once it reaches 90% of the daily limit. Tell me what that check costs
+route does, cached for a minute, in its own src/lib/usage.ts so a test
+can replace it, and refuse with 402 and a sentence once it reaches 90%
+of the daily limit. Tell me what that check costs
 in calls before writing it. Then go through the eight-item list in
 this message and write REVIEW.md: one line per item, pass or fail,
 with the evidence. Done means npm test, npm run typecheck,
@@ -135,8 +142,9 @@ Three changes, tests first wherever there is logic. One: a logEvent
 function in src/lib/log.ts that writes one line of JSON per event; use
 it in src/lib/proxy.ts for every upstream status of 400 or more, with
 the status and the path only, never the URL or the body. Two: a GET
-route in src/app/api/health that answers ok, store (its data folder
-can be read) and upstream separately, calls_used and daily_limit, and
+route in src/app/api/health that answers ok, store (a read succeeds and
+its file is still where it was opened) and upstream separately,
+calls_used and daily_limit, and
 503 when anything is down. It may use the user endpoint and nothing
 else upstream. Three: a POST route in src/app/api/client-error that
 takes a message and a stack, cuts both short, logs them, and is
@@ -185,16 +193,19 @@ Nothing counts calls per kind of request, so the split becomes stopping points o
 
 ```
 Turn this degradation order into code. In src/lib/quota-policy.ts,
-admit(kind, used, limit) for four kinds of request: background (a
-panel nobody is looking at) stops at 50% of the daily limit, auto (a
-visible panel's timer) at 75%, alert at 90%, and manual (a "refresh
-now" the person pressed) at the limit itself. An unknown count admits
-only manual. Tests first. The page marks each request with an x-budget
-header; the proxy treats a missing or unknown one as background and
-refuses with 402 and a sentence naming the stage. Reuse the cached
-count the daily ceiling already reads, and let this policy replace
-that ceiling. Done means npm test, npm run typecheck, npm run lint
-and npm run check:leak green; show me the diff.
+admit(kind, used, limit, cost) for four kinds of request: background
+(a panel nobody is looking at) stops at 50% of the daily limit, auto
+(a visible panel's timer) at 75%, alert at 90%, and manual (a "refresh
+now" the person pressed) at the limit itself. A request goes out only
+if the count after it, priced with estimateCalls, stays within its
+kind's share. An unknown count admits only manual. Tests first. The
+page marks each request with an x-budget header; the proxy treats a
+missing or unknown one as background and refuses with 402, a sentence
+naming the stage, and the stage in the body, so the page can tell it
+from EODHD's own 402 for a spent day and still send a refresh I press.
+Reuse the cached count the daily ceiling already reads, and let this
+policy replace that ceiling. Done means npm test, npm run typecheck,
+npm run lint and npm run check:leak green; show me the diff.
 ```
 
 ## 12. The final review (unit 3)
@@ -223,8 +234,9 @@ hand, as well as on pull requests. Its jobs only run for pull requests
 that are not drafts; make the condition say plainly that a scheduled or
 manual run counts, and give those runs a concurrency group of their own.
 Two: Node is pinned in .nvmrc, which CI reads; pin the same major
-version in engines in package.json, which the host reads, and run
-npm install so the lockfile's copy agrees. Change nothing else, run
+version in engines in package.json, which the host reads, keeping the
+22.13 floor the store's node:sqlite needs, and run npm install so the
+lockfile's copy agrees. Change nothing else, run
 npm test, npm run typecheck, npm run lint and npm run check:leak, and
 show me the diff.
 ```

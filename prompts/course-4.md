@@ -33,9 +33,12 @@ Mock mode on, plan mode on, and paste:
 ```
 Plan step 1 of moving the saved screens off the browser, and only step 1.
 Add src/lib/store.ts: documents keyed by user and key, each with a
-version integer, a payload and updatedAt, kept in a JSON file under data/
-that git ignores. putDoc takes the version the caller read and refuses
-the write if it has moved. Every function takes the user first, and
+version integer, a payload and updatedAt, one table docs in SQLite
+through Node's built-in node:sqlite, in .data/app.db, which git
+ignores; the tests use ":memory:". putDoc takes the version the caller
+read and refuses the write if it has moved, in one conditional UPDATE,
+so two writes arriving together cannot both pass. Every function takes
+the user first, and
 src/lib/user.ts is the one place the current user comes from. Add the
 route src/app/api/store/[key]/route.ts: GET is 404 for a missing
 document, PUT is 409 on a stale version, and only the keys I list exist.
@@ -61,7 +64,8 @@ request already in flight. Add oldestTimestamp(rows). Write
 tests/market-store.test.ts first with a fake fetcher that counts its
 calls: two callers in one tick with overlapping symbols make one call for
 the union, and asking again inside maxAge makes none. Then make the home
-page's "as of" the oldest timestamp rather than the newest. First, with
+page's "as of" the oldest timestamp rather than the newest, and the age
+printed beside it follow that same time. First, with
 estimateCalls in src/lib/cost.ts, tell me what one home page load costs
 now and after this change; it must not go up. Mock mode only. Run npm
 test, typecheck, lint and check:leak, and show me the diff.
@@ -122,7 +126,9 @@ true for a new quote panel, false for the watchlist. The container
 decides what a following panel shows, and never drives a panel with a
 selection that came from that panel. Mirror the symbol into the address
 as ?symbol=, and accept it on the way in only if the page already shows
-that symbol. Tell me with estimateCalls what selecting a symbol costs;
+that symbol: read it back in an effect that runs again whenever what the
+page shows changes, from window.location rather than the render's
+searchParams. Tell me with estimateCalls what selecting a symbol costs;
 one already on the watchlist must cost nothing. Write
 tests/selection.test.ts first, for the no-op and the address check.
 Mock mode. Run npm test, typecheck, lint and check:leak, and show me
@@ -248,8 +254,10 @@ Mock mode on, plan mode on, and paste:
 Plan, then build. In src/lib/age.ts add ageSeconds(timestamp, now) on
 Unix seconds, ignoring gmtoffset, and medianGap(timestamps): the median
 of the gaps between distinct consecutive values. Test both first in
-tests/age.test.ts with literal timestamps. Show each panel's age from
-its own rows, and the oldest of them in the header. Then write
+tests/age.test.ts with literal timestamps. Show each quote panel's age
+from its own rows, and the oldest of them in the header. The screen and
+the backtest rows carry a date, not a timestamp: those panels say end
+of day and name the date, and so does the header. Then write
 scripts/sample-interval.mjs: it asks the running dev server's proxy for
 one symbol's real-time quote N times, a minute apart, and prints each
 timestamp and the median gap. Before any live run, tell me with
@@ -269,9 +277,11 @@ send, and returns null if any of them is not in the cost table, so the
 figure cannot drift from the fetch. Each panel's config gets a refresh
 of live, minutes, daily or manual; a backtest is manual and cannot be
 set otherwise. The container's loop skips while document.visibilityState
-is hidden or the panel's market is closed, and refreshes once on focus.
-Show calls used today from the usage route, the daily limit, and the
-time the limit will be reached at the current rate. Write
+is hidden, leaves out each symbol whose exchange is outside its regular
+session (crypto never closes, an unknown exchange counts as open), and
+refreshes once on focus. Show calls used today from the usage route,
+the daily limit, and the time the limit will be reached at the current
+rate, with each interval priced as its own round. Write
 tests/budget.test.ts first, for the worked cockpit in this lesson and
 for the projection. Mock mode; tell me the per-refresh price of my
 current layout before wiring the loop. Run npm test, typecheck, lint and
@@ -285,7 +295,10 @@ Mock mode on, plan mode on, and paste:
 ```
 Plan, then build, the wall. Add shouldRefresh to src/lib/budget.ts: no
 automatic refresh once the calls left would not cover one more refresh
-plus a reserve, while a refresh by hand may spend the reserve. When it
+plus a reserve the size of one refresh by hand, while a refresh by hand
+may spend the reserve. The wall holds back the loop, Refresh and Retry,
+not the page's first load: the meter lags behind the API and a 402
+costs nothing, so the API's answer decides that one. When it
 says no, or a request answers 402, show "Refresh paused: <used> of
 <limit> calls used today, resets at 00:00 UTC", and keep every panel's
 rows on screen in its stale state with its real age. A 429 waits for

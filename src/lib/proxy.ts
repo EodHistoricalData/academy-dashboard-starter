@@ -1,5 +1,5 @@
 import { estimateCalls } from "@/lib/cost";
-import { eodhdFetch, hasKey, isMock, redactKey } from "@/lib/eodhd";
+import { configProblem, eodhdFetch, isMock, redactKey } from "@/lib/eodhd";
 import { checkScreenerQuery } from "@/lib/filters";
 import { toScreenRows } from "@/lib/screen-query";
 
@@ -55,12 +55,11 @@ export async function proxy(
 
   // Said plainly, before anything is sent: "could not reach EODHD" would send you looking
   // at the network for a variable that is simply not set.
-  if (!isMock() && !hasKey()) {
+  // The sentence comes from src/lib/eodhd.ts, the one file that knows the key's name.
+  const problem = configProblem(process.env);
+  if (problem) {
     return Response.json(
-      {
-        error:
-          "EODHD_API_KEY is not set on the server. Put it in .env.local (or the host's settings) and restart, or set EODHD_MOCK=1 to work on fixtures.",
-      },
+      { error: problem, kind: "no-key" },
       { status: 503, headers: { "cache-control": "no-store" } },
     );
   }

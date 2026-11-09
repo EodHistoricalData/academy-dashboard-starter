@@ -51,13 +51,13 @@ export function failureSentence(f: Failure): { what: string; next: string } {
     case "no-key":
       return {
         what: "There is no API key on the server.",
-        next: "Put EODHD_API_KEY in .env.local and restart, or set EODHD_MOCK=1 to use the fixtures.",
+        next: "Copy .env.example to .env.local, put your key in it and restart, or set EODHD_MOCK=1 to use the fixtures.",
       };
     case "rejected":
       return f.status === 401
         ? {
             what: "EODHD rejected the key (401).",
-            next: "Check EODHD_API_KEY character by character: a revoked key and a mistyped one answer the same.",
+            next: "Check the key in .env.local character by character: a revoked key and a mistyped one answer the same.",
           }
         : {
             what: "Your plan does not cover this data (403).",

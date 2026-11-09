@@ -63,7 +63,7 @@ describe("a sentence for each kind of failure", () => {
   });
 
   it("no key: where to put it", () => {
-    expect(failureSentence({ kind: "no-key" }).next).toMatch(/EODHD_API_KEY/);
+    expect(failureSentence({ kind: "no-key" }).next).toMatch(/.env.example to .env.local/);
   });
 
   it("never says only that something went wrong", () => {

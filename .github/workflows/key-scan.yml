@@ -50,3 +50,10 @@ jobs:
       - run: npm test
       # Builds with a made-up key and fails if its value lands anywhere in the output.
       - run: npm run check:leak
+      # The key is read in one file. Any other .ts or .tsx file under src that names it
+      # fails the run and is printed. Alone in its step: under `set -e` a failing command
+      # negated with `!` does not stop the script, so a line after it would turn this green.
+      - name: Key stays in eodhd.ts
+        run: |
+          ! grep -rn "EODHD_API_KEY" src --include="*.ts*" \
+            | grep -v "^src/lib/eodhd.ts:"

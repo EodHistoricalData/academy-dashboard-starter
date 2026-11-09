@@ -26,15 +26,23 @@ export class ProxyError extends Error {
 }
 
 /**
- * What a fetcher's error means. A 503 from the proxy that names EODHD_API_KEY is the
+ * What a fetcher's error means. A 503 from the proxy whose body says `kind: "no-key"` is the
  * missing key; anything thrown that is not a proxy answer is the network.
  */
 export function failureOf(error: unknown): Failure {
   if (error instanceof ProxyError) {
-    if (error.status === 503 && error.body.includes("EODHD_API_KEY")) return { kind: "no-key" };
+    if (error.status === 503 && kindOf(error.body) === "no-key") return { kind: "no-key" };
     return failureFromStatus(error.status, error.retryAfter, error.body);
   }
   return { kind: "unreachable", status: null };
+}
+
+function kindOf(body: string): unknown {
+  try {
+    return (JSON.parse(body) as { kind?: unknown }).kind;
+  } catch {
+    return null;
+  }
 }
 
 async function getJson(path: string, params: Record<string, string> = {}): Promise<unknown> {

@@ -16,7 +16,7 @@ export function NoKey() {
           Copy <Code>.env.example</Code> to <Code>.env.local</Code>.
         </li>
         <li>
-          Put your key in <Code>EODHD_API_KEY</Code>. A free one is at{" "}
+          Put your key in it, on the key’s line. A free one is at{" "}
           <a
             href="https://eodhd.com"
             target="_blank"
@@ -87,7 +87,7 @@ function explain(failure: Exclude<Failure, { kind: "no-key" }>): {
             steps: [
               "The API answers the same way for a revoked key and a mistyped one.",
               <>
-                Check <Code>EODHD_API_KEY</Code> in <Code>.env.local</Code>{" "}
+                Check the key in <Code>.env.local</Code>{" "}
                 character by character, or in your host’s settings, then
                 restart.
               </>,

@@ -11,14 +11,22 @@ name: Checks
 on:
   pull_request:
     types: [opened, synchronize, reopened, ready_for_review]
+  # Every Monday on the default branch, and by hand: a dependency, a runner image or an
+  # expired action breaks a tool nobody has committed to. 06:17, because the top of the hour
+  # is GitHub's busiest. A schedule runs on the default branch only.
+  schedule:
+    - cron: "17 6 * * 1"
+  workflow_dispatch:
 
 concurrency:
-  group: ${{ github.workflow }}-${{ github.event.pull_request.number }}
+  # A pull request's runs cancel each other; a scheduled or manual run has a group of its own.
+  group: ${{ github.workflow }}-${{ github.event.pull_request.number || github.ref }}
   cancel-in-progress: true
 
 jobs:
   scan:
-    if: github.event.pull_request.draft == false
+    # A draft runs nothing; a scheduled or manual run always counts.
+    if: github.event_name != 'pull_request' || !github.event.pull_request.draft
     runs-on: ubuntu-latest
     timeout-minutes: 5
     steps:
@@ -35,7 +43,8 @@ jobs:
       - run: sh scripts/key-scan.sh
 
   checks:
-    if: github.event.pull_request.draft == false
+    # A draft runs nothing; a scheduled or manual run always counts.
+    if: github.event_name != 'pull_request' || !github.event.pull_request.draft
     runs-on: ubuntu-latest
     timeout-minutes: 10
     steps:

@@ -1,4 +1,4 @@
-import { mkdirSync } from "node:fs";
+import { existsSync, mkdirSync } from "node:fs";
 import path from "node:path";
 import { DatabaseSync } from "node:sqlite";
 
@@ -105,11 +105,26 @@ export function openStore(file: string): Store {
 let shared: Store | null = null;
 
 /** The server's store, opened on first use. */
+const storeFile = () => process.env.STORE_FILE ?? path.join(process.cwd(), ".data", "app.db");
+
 export function store(): Store {
-  shared ??= openStore(
-    process.env.STORE_FILE ?? path.join(process.cwd(), ".data", "app.db"),
-  );
+  shared ??= openStore(storeFile());
   return shared;
+}
+
+/**
+ * Whether the store answers a read, for the health check: it opens, a query runs, and its
+ * file is still where it was (an open file survives its folder being moved; the next start
+ * would not). Reads only; user 0 never has documents.
+ */
+export function storeReadable(): boolean {
+  try {
+    store().getDoc(0, "notes");
+    const file = storeFile();
+    return file === ":memory:" || existsSync(file);
+  } catch {
+    return false;
+  }
 }
 
 export function getDoc(user: number, key: DocKey): StoredDoc | null {

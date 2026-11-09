@@ -1,6 +1,7 @@
 import { estimateCalls } from "@/lib/cost";
 import { configProblem, eodhdFetch, isMock, redactKey } from "@/lib/eodhd";
 import { checkScreenerQuery } from "@/lib/filters";
+import { logEvent } from "@/lib/log";
 import { allow, overCeiling, retryAfter } from "@/lib/rate-limit";
 import { toScreenRows } from "@/lib/screen-query";
 import { todayCount } from "@/lib/usage";
@@ -138,6 +139,10 @@ export async function proxy(
       { status: 502, headers: { "cache-control": "no-store" } },
     );
   }
+
+  // One line in the server log for every upstream error: the status and the path, never
+  // the URL (it carries the key), the query or the body.
+  if (answer.status >= 400) logEvent("proxy_upstream_error", { status: answer.status, path: target });
 
   const headers: Record<string, string> = {
     "x-content-type-options": "nosniff",

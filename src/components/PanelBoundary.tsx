@@ -1,6 +1,6 @@
 "use client";
 
-import { Component, type ReactNode } from "react";
+import { Component, type ErrorInfo, type ReactNode } from "react";
 
 /**
  * One panel's crash stays in that panel. A render error inside it shows here, with a reset;
@@ -15,6 +15,16 @@ export class PanelBoundary extends Component<
 
   static getDerivedStateFromError(error: Error) {
     return { error };
+  }
+
+  // The crash reaches the server log instead of dying in a tab nobody is watching.
+  componentDidCatch(error: Error, info: ErrorInfo) {
+    void fetch("/api/client-error", {
+      method: "POST",
+      headers: { "content-type": "application/json" },
+      body: JSON.stringify({ message: error.message, stack: error.stack ?? info.componentStack }),
+      keepalive: true,
+    }).catch(() => {}); // a report that cannot be sent must not crash anything else
   }
 
   render() {

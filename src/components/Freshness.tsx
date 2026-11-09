@@ -76,5 +76,5 @@ function classify(minutes: number): string {
   if (minutes < 60 * 20) {
     return "Hours behind. This is a snapshot, not a quote. It answers where something closed and cannot answer where it is now.";
   }
-  return "More than a day behind, so this is an end-of-day close. Useful for history and for anything measured in days; useless for anything measured in minutes. If your tool needs today, this is the limit you have just met.";
+  return "Twenty hours or more behind, so this is the last session's close. Useful for history and for anything measured in days; useless for anything measured in minutes. If your tool needs today, this is the limit you have just met.";
 }

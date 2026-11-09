@@ -16,6 +16,7 @@ A personal market dashboard on the [EODHD APIs](https://eodhd.com/financial-apis
 
 - **Node 22.13 or later.** `.nvmrc` names 22, so `nvm use` picks it. The document store uses Node's built-in `node:sqlite`, which needs no flag from 22.13.
 - **A free EODHD API key**, from [eodhd.com/register](https://eodhd.com/register). It goes in `.env.local` as `EODHD_API_KEY`, never in a variable starting `NEXT_PUBLIC_`. The free plan is 20 API calls a day.
+- **npm 11 or later may warn** that `unrs-resolver` has an install script not covered by `allowScripts`. Nothing needs it: lint and the app run without it.
 - **Or no key at all: mock mode.** With `EODHD_MOCK=1` every request is answered from the JSON files in `fixtures/`, nothing goes over the network and nothing is spent. Every page says so at the top, because invented numbers that look live are worse than none. `fixtures/README.md` says how to add one.
 - **To keep layouts, notes and rules on the server:** `DASHBOARD_PASSWORD` (what you sign in with at `/login`) and `SESSION_SECRET` (a long random string: `node -e "console.log(require('crypto').randomBytes(32).toString('base64url'))"`). In mock mode with no password, user 1 is assumed and the pages say so. `.env.example` lists every variable and its default.
 

@@ -2,7 +2,8 @@ import { estimateCalls } from "@/lib/cost";
 import { configProblem, eodhdFetch, isMock, redactKey } from "@/lib/eodhd";
 import { checkScreenerQuery } from "@/lib/filters";
 import { logEvent } from "@/lib/log";
-import { allow, overCeiling, retryAfter } from "@/lib/rate-limit";
+import { admit, kindOf, stageSentence } from "@/lib/quota-policy";
+import { allow, retryAfter } from "@/lib/rate-limit";
 import { toScreenRows } from "@/lib/screen-query";
 import { todayCount } from "@/lib/usage";
 
@@ -52,12 +53,14 @@ const hits = new Map<string, number[]>();
  * `segments` is the path after /api/proxy/, as the router split it; `query` is the
  * caller's query string, from which any `api_token` is dropped. `caller` is the address the
  * route read from x-forwarded-for: on a host that sets that header itself it names the
- * caller; where a client can write it, it is a hint, and the daily ceiling is what holds.
+ * caller; where a client can write it, it is a hint, and the quota policy is what holds.
+ * `budget` is the page's x-budget header: what the request is for.
  */
 export async function proxy(
   segments: string[],
   query: URLSearchParams,
   caller = "unknown",
+  budget: string | null = null,
 ): Promise<Response> {
   const now = Date.now();
   if (!allow(hits, caller, now)) {
@@ -103,14 +106,15 @@ export async function proxy(
     params = checked.params;
   }
 
-  // The daily ceiling, before anything goes upstream: past 90% of the day this proxy stops
-  // asking, so strangers cannot spend the last of it. Reading the count costs no calls.
+  // The quota policy, before anything goes upstream: each kind of request stops at its own
+  // share of the day, background first and a refresh someone pressed last, so neither
+  // strangers nor a forgotten tab can spend the end of it. A request that does not say what
+  // it is for counts as background. Reading the count costs no calls.
+  const kind = kindOf(budget);
   const { used, limit } = await todayCount(now);
-  if (overCeiling(used, limit)) {
+  if (!admit(kind, used, limit)) {
     return Response.json(
-      {
-        error: `This tool has stopped asking EODHD for today: ${used} of ${limit} calls are used, and the last tenth is kept back. It resumes at 00:00 UTC.`,
-      },
+      { error: stageSentence(kind, used, limit), stage: kind },
       { status: 402, headers: { "cache-control": "no-store" } },
     );
   }

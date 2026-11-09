@@ -23,5 +23,5 @@ export async function GET(
   const { path } = await params;
   // The first address in x-forwarded-for, for the per-address limit in src/lib/proxy.ts.
   const caller = req.headers.get("x-forwarded-for")?.split(",")[0]?.trim() || "unknown";
-  return proxy(path, new URL(req.url).searchParams, caller);
+  return proxy(path, new URL(req.url).searchParams, caller, req.headers.get("x-budget"));
 }

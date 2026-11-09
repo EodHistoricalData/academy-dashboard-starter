@@ -41,6 +41,7 @@ import {
 } from "@/lib/market-store";
 import type { Notes } from "@/lib/notes";
 import { panelState } from "@/lib/panel-state";
+import type { Kind } from "@/lib/quota-policy";
 import { type Needs, neededBy, type PanelData, type PanelDef, unionNeeds } from "@/lib/panels";
 import { type Checked, checkAll, digest, nextRules } from "@/lib/check-all";
 import { isAvailable } from "@/lib/rows";
@@ -105,7 +106,9 @@ function effectiveConfig(panel: Panel, selection: Selection): unknown {
 /** The requests a panel's needs come to, by the key the container tracks them under. */
 function keysOf(needs: Needs): string[] {
   return [
-    ...(needs.quotes.length > 0 ? ["quotes"] : []),
+    // One key per symbol: a retry that brings one symbol back must not clear the failure of
+    // the others, or a panel would show one row of seven as if it were all of them.
+    ...needs.quotes.map((s) => `quote:${s}`),
     ...(needs.screen ? [`screen:${screenKey(needs.screen)}`] : []),
     ...(needs.eod ? [`eod:${needs.eod}`] : []),
   ];
@@ -180,7 +183,7 @@ export function Cockpit({
     bars: createRequestCache(eodViaProxy, Date.now, 60 * 60_000),
   }));
   const [loaded, setLoaded] = useState<Loaded>(EMPTY);
-  // What is being fetched, and what last failed, by request key ("quotes", "screen:…").
+  // What is being fetched, and what last failed, by key ("quote:AAPL.US", "screen:…").
   const [fetching, setFetching] = useState<ReadonlySet<string>>(new Set());
   const [failures, setFailures] = useState<ReadonlyMap<string, Failure>>(new Map());
   const [selection, setSelection] = useState<Selection>(NO_SELECTION);
@@ -238,7 +241,9 @@ export function Cockpit({
   useEffect(() => {
     const now = new URLSearchParams(window.location.search).get("symbol");
     const addressed = fromAddress(now, showing);
-    // Setting state from an outside system, the address, is what this effect is for.
+    // Setting state from an outside system, the address, is what this effect is for; the
+    // no-op in nextSelection is what stops it feeding the effect above.
+    // eslint-disable-next-line react-hooks/set-state-in-effect
     if (addressed !== null) select(addressed, "address");
   }, [searchParams, showing, select]);
 
@@ -251,9 +256,10 @@ export function Cockpit({
     const current = rulesNow.current;
     const results = await checkAll(
       current,
-      // The store already holds these: the rules' symbols are in every fetch's union.
+      // The store usually holds these: the rules' symbols ride in the union. When it does
+      // not, asking is a check made only for an alert rule, and says so to the proxy.
       async (symbols) =>
-        (await stores.quotes.quotes(symbols)).map((f) => f.row).filter(isAvailable),
+        (await stores.quotes.quotes(symbols, false, "alert")).map((f) => f.row).filter(isAvailable),
       Date.now(),
       { seen: seen.current },
     );
@@ -273,28 +279,31 @@ export function Cockpit({
 
   /**
    * `ruleSymbols` ride along, so the rules are checked on the answer: the loop sends those
-   * whose market is open, a refresh by hand sends all, a retry of one panel none.
+   * whose market is open, a refresh by hand sends all, a retry of one panel none. `kind`
+   * tells the proxy what the request is for (src/lib/quota-policy.ts): a panel's own load
+   * and its timer are "auto", a button pressed is "manual".
    */
   const fetchFor = useCallback(
-    async (needs: Needs[], force: boolean, ruleSymbols: string[]) => {
+    async (needs: Needs[], force: boolean, ruleSymbols: string[], kind: Kind) => {
       // The same plan the budget prices: see requestsOf in src/lib/proxy-fetch.ts.
       const { symbols, screens, histories } = fetchPlan(needs, ruleSymbols);
 
-      const settle = async <T,>(key: string, job: () => Promise<T>, apply: (value: T) => void) => {
-        setFetching((prev) => new Set(prev).add(key));
+      const settle = async <T,>(keys: string[], job: () => Promise<T>, apply: (value: T) => void) => {
+        setFetching((prev) => new Set([...prev, ...keys]));
         try {
           apply(await job());
           setFailures((prev) => {
             const next = new Map(prev);
-            next.delete(key);
+            for (const key of keys) next.delete(key);
             return next;
           });
         } catch (error) {
-          setFailures((prev) => new Map(prev).set(key, failureOf(error)));
+          const failure = failureOf(error);
+          setFailures((prev) => new Map([...prev, ...keys.map((k) => [k, failure] as const)]));
         } finally {
           setFetching((prev) => {
             const next = new Set(prev);
-            next.delete(key);
+            for (const key of keys) next.delete(key);
             return next;
           });
         }
@@ -302,7 +311,7 @@ export function Cockpit({
 
       await Promise.all([
         symbols.length > 0 &&
-          settle("quotes", () => stores.quotes.quotes(symbols, force), (rows) => {
+          settle(symbols.map((s) => `quote:${s}`), () => stores.quotes.quotes(symbols, force, kind), (rows) => {
             setLoaded((l) => {
               const quotes = new Map(l.quotes);
               for (const q of rows) quotes.set(q.row.code, q);
@@ -311,12 +320,12 @@ export function Cockpit({
             void runChecks();
           }),
         ...screens.map((k) =>
-          settle(`screen:${k}`, () => stores.screens.get(k, force), (v) =>
+          settle([`screen:${k}`], () => stores.screens.get(k, force, kind), (v) =>
             setLoaded((l) => ({ ...l, screens: new Map(l.screens).set(k, v) })),
           ),
         ),
         ...histories.map((s) =>
-          settle(`eod:${s}`, () => stores.bars.get(s, force), (v) =>
+          settle([`eod:${s}`], () => stores.bars.get(s, force, kind), (v) =>
             setLoaded((l) => ({ ...l, bars: new Map(l.bars).set(s, v) })),
           ),
         ),
@@ -354,7 +363,7 @@ export function Cockpit({
     if (missing.length === 0 && rulesMissing.length === 0) return;
     // Started after this render, so the effect itself sets no state. A request already in
     // flight for the same symbols is shared by the store, not sent twice.
-    void Promise.resolve().then(() => fetchFor(missing, false, rulesMissing));
+    void Promise.resolve().then(() => fetchFor(missing, false, rulesMissing, "auto"));
   }, [openNeeds, loaded, fetchFor]);
 
   // Calls used today and the limit, read again after every round: the meter is the truth,
@@ -377,15 +386,16 @@ export function Cockpit({
   // The loop's schedule: one round per interval, each symbol priced in the fastest round
   // that asks for it. The rules' symbols ride with the fastest.
   const rounds = useMemo(() => {
+    const out: { refresh: Refresh; cost: number; everyMs: number }[] = [];
     let covered: FetchPlan = { symbols: [], screens: [], histories: [] };
-    return REFRESH.flatMap((refresh) => {
+    for (const refresh of REFRESH) {
       const everyMs = REFRESH_EVERY_MS[refresh];
-      if (everyMs === null) return [];
+      if (everyMs === null) continue;
       const needs = neededBy(
         layout.panels.filter((p) => p.refresh === refresh),
         (p) => needsByPanel[layout.panels.indexOf(p)],
       );
-      if (needs.length === 0) return [];
+      if (needs.length === 0) continue;
       const first = covered.symbols.length + covered.screens.length + covered.histories.length === 0;
       const plan = without(fetchPlan(needs, first ? ruleSymbols : []), covered);
       covered = {
@@ -394,8 +404,9 @@ export function Cockpit({
         histories: [...covered.histories, ...plan.histories],
       };
       const cost = refreshCost(requestsOf(plan));
-      return cost === null ? [] : [{ refresh, cost, everyMs }];
-    });
+      if (cost !== null) out.push({ refresh, cost, everyMs });
+    }
+    return out;
   }, [layout, needsByPanel, ruleSymbols]);
 
   // The wall. A 402 means the day is spent: nothing more is sent until midnight UTC. Before
@@ -411,6 +422,17 @@ export function Cockpit({
       shouldRefresh({ ...meter, perRefresh, reserve: handPrice ?? 0, byHand }));
   const byHandAllowed = allows(handPrice, true);
   const loopAllowed = allows(rounds[0]?.cost ?? 0, false);
+
+  /** When the oldest part of a panel's data arrived, or null before it has any. */
+  function lastFetched(needs: Needs): number | null {
+    const times = [
+      ...needs.quotes.flatMap((s) => loaded.quotes.get(s)?.fetchedAt ?? []),
+      ...(needs.screen ? [loaded.screens.get(screenKey(needs.screen))?.fetchedAt ?? null] : []),
+      ...(needs.eod ? [loaded.bars.get(needs.eod)?.fetchedAt ?? null] : []),
+    ];
+    if (times.length === 0 || times.includes(null)) return null;
+    return Math.min(...(times as number[]));
+  }
 
   /**
    * One pass of the loop. Nothing while the tab is hidden or the wall is near; otherwise
@@ -431,7 +453,7 @@ export function Cockpit({
     if (due.length === 0) return;
     const rulesOpen = ruleSymbols.filter((s) => marketOpen(s, at));
     if (!allows(refreshCost(requestsOf(fetchPlan(due, rulesOpen))), false)) return;
-    void fetchFor(due, false, rulesOpen).then(readUsage);
+    void fetchFor(due, false, rulesOpen, "auto").then(readUsage);
   };
 
   // Whether any open panel that refreshes by itself has a market open now.
@@ -569,17 +591,6 @@ export function Cockpit({
     };
   }
 
-  /** When the oldest part of a panel's data arrived, or null before it has any. */
-  function lastFetched(needs: Needs): number | null {
-    const times = [
-      ...needs.quotes.flatMap((s) => loaded.quotes.get(s)?.fetchedAt ?? []),
-      ...(needs.screen ? [loaded.screens.get(screenKey(needs.screen))?.fetchedAt ?? null] : []),
-      ...(needs.eod ? [loaded.bars.get(needs.eod)?.fetchedAt ?? null] : []),
-    ];
-    if (times.length === 0 || times.includes(null)) return null;
-    return Math.min(...(times as number[]));
-  }
-
   /** What the panel has, for its state: null until the first answer for it arrives. */
   function rowsOf(needs: Needs, data: PanelData): unknown[] | null {
     if (needs.screen) return data.screen?.rows ?? null;
@@ -618,7 +629,7 @@ export function Cockpit({
         </div>
         <button
           type="button"
-          onClick={() => void fetchFor(openNeeds, true, ruleSymbols).then(readUsage)}
+          onClick={() => void fetchFor(openNeeds, true, ruleSymbols, "manual").then(readUsage)}
           disabled={!byHandAllowed}
           title={status ?? undefined}
           className="rounded border border-zinc-300 px-2.5 py-1 text-sm disabled:opacity-50 dark:border-zinc-700"
@@ -680,7 +691,7 @@ export function Cockpit({
                     <Failed
                       failure={state.failure}
                       canRetry={allows(refreshCost(requestsOf(fetchPlan([needs]))), true)}
-                      onRetry={() => void fetchFor([needs], true, []).then(readUsage)}
+                      onRetry={() => void fetchFor([needs], true, [], "manual").then(readUsage)}
                     />
                     {state.rows !== null && body}
                   </div>

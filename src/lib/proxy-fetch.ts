@@ -4,6 +4,7 @@ import { type Failure, failureFromStatus } from "@/lib/failure";
 import { toTriples } from "@/lib/filters";
 import type { ScreenConfig } from "@/lib/layout";
 import { type Needs, unionNeeds } from "@/lib/panels";
+import type { Kind } from "@/lib/quota-policy";
 import { quotesRequest } from "@/lib/quote-request";
 import { type Row, toRows } from "@/lib/rows";
 import { PAGE_LIMIT, screenRequest, type ScreenRow, toScreenRows } from "@/lib/screen-query";
@@ -32,6 +33,9 @@ export class ProxyError extends Error {
 export function failureOf(error: unknown): Failure {
   if (error instanceof ProxyError) {
     if (error.status === 503 && kindOf(error.body) === "no-key") return { kind: "no-key" };
+    // The proxy's own quota policy, not EODHD's spent day: a refresh by hand still works.
+    const held = heldBy(error.body);
+    if (error.status === 402 && held) return held;
     return failureFromStatus(error.status, error.retryAfter, error.body);
   }
   return { kind: "unreachable", status: null };
@@ -45,10 +49,27 @@ function kindOf(body: string): unknown {
   }
 }
 
-async function getJson(path: string, params: Record<string, string> = {}): Promise<unknown> {
+function heldBy(body: string): Failure | null {
+  try {
+    const b = JSON.parse(body) as { stage?: unknown; error?: unknown };
+    return typeof b.stage === "string" && typeof b.error === "string"
+      ? { kind: "held", stage: b.stage, detail: b.error }
+      : null;
+  } catch {
+    return null;
+  }
+}
+
+/**
+ * The one place the page fetches through. `kind` goes in the x-budget header: what the
+ * request is for, which decides when the proxy stops sending it (src/lib/quota-policy.ts).
+ */
+async function getJson(path: string, params: Record<string, string>, kind: Kind): Promise<unknown> {
   const query = new URLSearchParams(params).toString();
   // A 429 waits and asks once more; a 402 is never retried (src/lib/budget.ts).
-  const res = await askWithinLimits(() => fetch(`/api/proxy/${path}${query ? `?${query}` : ""}`));
+  const res = await askWithinLimits(() =>
+    fetch(`/api/proxy/${path}${query ? `?${query}` : ""}`, { headers: { "x-budget": kind } }),
+  );
   if (!res.ok) {
     throw new ProxyError(res.status, res.headers.get("retry-after"), await res.text());
   }
@@ -56,10 +77,10 @@ async function getJson(path: string, params: Record<string, string> = {}): Promi
 }
 
 /** One request for every symbol: the first in the path, the rest in `s`. */
-export async function quotesViaProxy(symbols: string[]): Promise<Row[]> {
+export async function quotesViaProxy(symbols: string[], kind: Kind = "auto"): Promise<Row[]> {
   const req = quotesRequest(symbols);
   if (req === null) return [];
-  return toRows(await getJson(req.path, req.params));
+  return toRows(await getJson(req.path, req.params, kind));
 }
 
 /** The key a screen is cached under: what it asks, not which panel asked. */
@@ -73,16 +94,16 @@ export function screenRequestOf(key: string): Request {
   return screenRequest({ filters: toTriples(filters), sort, limit: PAGE_LIMIT });
 }
 
-export async function screenViaProxy(key: string): Promise<ScreenRow[]> {
+export async function screenViaProxy(key: string, kind: Kind = "auto"): Promise<ScreenRow[]> {
   const req = screenRequestOf(key);
-  return toScreenRows(await getJson(req.path, req.params));
+  return toScreenRows(await getJson(req.path, req.params, kind));
 }
 
 export const eodRequest = (symbol: string): Request => ({ path: `eod/${symbol}`, params: {} });
 
-export async function eodViaProxy(symbol: string): Promise<Bar[]> {
+export async function eodViaProxy(symbol: string, kind: Kind = "auto"): Promise<Bar[]> {
   const req = eodRequest(symbol);
-  return toBars(await getJson(req.path, req.params));
+  return toBars(await getJson(req.path, req.params, kind));
 }
 
 /**

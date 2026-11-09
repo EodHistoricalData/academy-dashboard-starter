@@ -1,6 +1,6 @@
 import { NextRequest } from "next/server";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
-import { allow, overCeiling } from "@/lib/rate-limit";
+import { allow } from "@/lib/rate-limit";
 
 // The proxy reads today's count through src/lib/usage.ts; here it is whatever a test says.
 const count = vi.hoisted(() => ({ used: 0 as number | null, limit: 20 as number | null }));
@@ -33,14 +33,6 @@ describe("allow: at most 30 requests a minute from one address", () => {
   });
 });
 
-describe("overCeiling: the proxy stops at 90% of the day", () => {
-  it("is over from 18 of 20, and never on a count it could not read", () => {
-    expect(overCeiling(17, 20)).toBe(false);
-    expect(overCeiling(18, 20)).toBe(true);
-    expect(overCeiling(null, 20)).toBe(false);
-  });
-});
-
 describe("the proxy, with both limits", () => {
   beforeEach(() => {
     vi.stubEnv("EODHD_API_KEY", "test-key-not-a-real-one");
@@ -53,10 +45,10 @@ describe("the proxy, with both limits", () => {
     vi.unstubAllGlobals();
   });
 
-  it("makes no upstream request once the count reaches the ceiling, and says why", async () => {
+  it("makes no upstream request past the quota policy's stage, and says why", async () => {
     const fetchMock = vi.fn(async () => new Response("[]"));
     vi.stubGlobal("fetch", fetchMock);
-    count.used = 18;
+    count.used = 18; // past every stage but a refresh by hand; this request says nothing
     const res = await call("eod/AAPL.US", "192.0.2.10");
     expect(res.status).toBe(402);
     expect((await res.json()).error).toMatch(/18 of 20/);

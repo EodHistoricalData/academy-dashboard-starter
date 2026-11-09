@@ -24,6 +24,9 @@ export type Failure =
   /** 404: the thing asked for does not exist, usually a mistyped ticker. EODHD says so in
    *  plain text ("Ticker Not Found."), which is kept as `detail`. */
   | { kind: "not-found"; detail: string }
+  /** This tool's proxy held the request back to keep the rest of the day for what matters
+   *  more (src/lib/quota-policy.ts). Not EODHD's spent day: a refresh by hand still works. */
+  | { kind: "held"; stage: string; detail: string }
   /** The request did not get an answer we understand: network, timeout, a 5xx. */
   | { kind: "unreachable"; status: number | null };
 
@@ -77,6 +80,11 @@ export function failureSentence(f: Failure): { what: string; next: string } {
       return {
         what: `EODHD does not know what was asked for (404): ${f.detail}`,
         next: "Check the ticker, including its exchange suffix.",
+      };
+    case "held":
+      return {
+        what: `Held back to save today’s calls: ${f.detail}`,
+        next: "What you press yourself is still sent, while it fits in what is left of today.",
       };
     case "unreachable":
       return {

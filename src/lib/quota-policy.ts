@@ -17,9 +17,14 @@ export function kindOf(header: string | null): Kind {
   return header !== null && Object.hasOwn(STOP_AT, header) ? (header as Kind) : "background";
 }
 
-export function admit(kind: Kind, used: number | null, limit: number | null): boolean {
+/**
+ * Whether a request of this kind, costing `cost` calls, may go out at this count: only if
+ * the count after it is still within the kind's share. Priced, so one request of five
+ * hundred tickers cannot walk past every stage at once.
+ */
+export function admit(kind: Kind, used: number | null, limit: number | null, cost = 1): boolean {
   if (used === null || limit === null) return kind === "manual"; // spending blind is how the day goes
-  return used < limit * STOP_AT[kind];
+  return used + cost <= limit * STOP_AT[kind];
 }
 
 /** Of two kinds, the one that stops later: a batch asked for by both goes out as that one. */

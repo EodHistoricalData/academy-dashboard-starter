@@ -111,8 +111,9 @@ export async function proxy(
   // strangers nor a forgotten tab can spend the end of it. A request that does not say what
   // it is for counts as background. Reading the count costs no calls.
   const kind = kindOf(budget);
+  const cost = estimateCalls(segments.join("/"), params) ?? 1;
   const { used, limit } = await todayCount(now);
-  if (!admit(kind, used, limit)) {
+  if (!admit(kind, used, limit, cost)) {
     return Response.json(
       { error: stageSentence(kind, used, limit), stage: kind },
       { status: 402, headers: { "cache-control": "no-store" } },

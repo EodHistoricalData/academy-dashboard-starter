@@ -24,6 +24,14 @@ describe("admit: the allowance gives way in a written order", () => {
     expect(admit("manual", 20, 20)).toBe(false);
   });
 
+  it("prices the request: one that would cross its stage is refused, however early", () => {
+    expect(admit("auto", 14, 20, 13)).toBe(false); // 14 + 13 is past 15
+    expect(admit("auto", 2, 20, 13)).toBe(true);
+    expect(admit("manual", 19, 20, 1)).toBe(true);
+    expect(admit("manual", 19, 20, 2)).toBe(false);
+    expect(admit("manual", 0, 20, 500)).toBe(false); // five hundred tickers in one request
+  });
+
   it("admits only a refresh by hand when the count cannot be read", () => {
     expect(admit("background", null, 20)).toBe(false);
     expect(admit("auto", 3, null)).toBe(false);
@@ -63,6 +71,16 @@ describe("the proxy, at 16 of 20", () => {
     const res = await call();
     expect(res.status).toBe(402);
     expect(await res.json()).toMatchObject({ stage: "background", error: expect.stringMatching(/16 of 20.*50%/) });
+  });
+
+  it("refuses a request bigger than what is left, even one marked manual", async () => {
+    const s = Array.from({ length: 40 }, (_, i) => `T${i}.US`).join(",");
+    const url = `http://localhost/api/proxy/real-time/AAPL.US?s=${s}`;
+    const res = await GET(
+      new NextRequest(url, { headers: { "x-forwarded-for": "203.0.113.200", "x-budget": "manual" } }),
+      { params: Promise.resolve({ path: ["real-time", "AAPL.US"] }) },
+    );
+    expect(res.status).toBe(402);
   });
 
   it("refuses a panel's timer, and serves a refresh someone pressed", async () => {

@@ -161,8 +161,7 @@ export default async function ScreenPage({
         </div>
 
         <footer className="text-xs text-zinc-500 dark:text-zinc-400">
-          The screen is defined in <Code>src/lib/screens.ts</Code>. Educational
-          starter. Not investment advice. Market data by EODHD.
+          The screen is defined in <Code>src/lib/screens.ts</Code>.
         </footer>
       </main>
     </div>

@@ -123,9 +123,6 @@ export default async function Home() {
             reaches the browser. Any market request you add in the browser
             goes through <Code>/api/proxy/*</Code>.
           </p>
-          <p className="text-xs text-zinc-500 dark:text-zinc-400">
-            Educational starter. Not investment advice. Market data by EODHD.
-          </p>
         </footer>
       </main>
     </div>

@@ -66,8 +66,4 @@ npm run check:leak   # builds with a made-up key and fails if its value lands in
 
 ## Licence
 
-The **code** here is MIT. Fork it, change it, ship it.
-
-The **data** is not yours to redistribute. EODHD's own wording is that the packages on the pricing page are *"intended for personal use only as commercial use requires a more thorough approach to licensing and data use"* ([commercial vs personal use](https://eodhd.com/financial-apis/commercial-vs-personal-license-use)). Running this for yourself is personal use. Putting it on a public URL where other people read the numbers, or building it into something you sell, is not, and needs a conversation with EODHD first: support@eodhistoricaldata.com. The [terms](https://eodhd.com/financial-apis/terms-conditions) are the authority, not this paragraph.
-
-Not affiliated with Next.js or Vercel, beyond using them. Market data by [EODHD](https://eodhd.com/).
+The code is MIT: see [LICENSE](LICENSE). The market data it fetches is not covered by that licence and is not yours to redistribute: see [NOTICE](NOTICE).

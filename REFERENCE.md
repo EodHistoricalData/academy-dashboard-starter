@@ -404,3 +404,28 @@ a choice to you, the section for that unit says which one we made. Yours can dif
   have been asked for again on every render), Refresh and Retry are priced and stopped at
   the wall, and Retry no longer re-sends the rules' symbols.
 - The exam pass is in `REVIEW.md`, the paragraph in `PLAN.md`.
+
+## Ship Your Tool · unit 1: Shipped Means Someone Else Can Run It
+
+- `PLAN.md` opens with the audience sentence, then the Shipping backlog under Run it, Read
+  it and Tell when it is broken, each question with the file its answer belongs in.
+- `README.md` is rewritten in the lesson's order, with `docs/screenshot.png` taken from mock
+  mode. Every limit carries the number already in `PLAN.md`; the update interval is a TODO
+  because it was never measured live. The quick start was run from a fresh clone of this
+  branch in mock mode: clone and `npm ci` in 40 s, the dashboard up 12 s later. The one
+  thing not in the README was npm 11's warning about `unrs-resolver`'s install script; it
+  has a line now. (On the machine that built this, `next dev` and `next build` ran with
+  webpack, because the platform blocks the native SWC binary that Turbopack needs.)
+- `configProblem` and `src/instrumentation.ts` as in the lesson; `next start` without a key
+  prints the sentence and answers 500. The home page's no-key branch is gone. The screen
+  page and the cockpit keep theirs: the lesson names one page, and they can no longer be
+  reached either.
+- `.env.example` is NOT changed on this branch: the session that built it is not allowed to
+  open env files. What it should hold: `EODHD_API_KEY=` (empty), `EODHD_MOCK=` (off),
+  `EODHD_API_BASE_URL=https://eodhd.com/api`, `DASHBOARD_PASSWORD=` (none: in mock mode,
+  user 1 is assumed), `SESSION_SECRET=` (none), `STORE_FILE=.data/app.db`.
+- The history search finds three lines, all the same made-up example string in the key
+  guard's documentation; no key.
+- `LICENSE` has `Copyright (c) 2026 Your Name` under the starter's line: the name is the
+  learner's to type. The footer links the starter's `NOTICE` on GitHub; a fork should point
+  it at its own.

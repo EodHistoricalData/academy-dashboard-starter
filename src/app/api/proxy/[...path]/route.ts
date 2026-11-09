@@ -21,5 +21,7 @@ export async function GET(
   { params }: { params: Promise<{ path: string[] }> },
 ) {
   const { path } = await params;
-  return proxy(path, new URL(req.url).searchParams);
+  // The first address in x-forwarded-for, for the per-address limit in src/lib/proxy.ts.
+  const caller = req.headers.get("x-forwarded-for")?.split(",")[0]?.trim() || "unknown";
+  return proxy(path, new URL(req.url).searchParams, caller);
 }

@@ -5,16 +5,25 @@ import { GET } from "@/app/api/proxy/[...path]/route";
 import { quotes } from "@/lib/quotes";
 import { WATCHLIST } from "@/lib/watchlist";
 
+// Today's count, for the proxy's daily ceiling: far from it here (tests/rate-limit.test.ts
+// covers the ceiling itself).
+vi.mock("@/lib/usage", () => ({ todayCount: async () => ({ used: 0, limit: 20 }) }));
+
 // Not a key, and not shaped like one: the key scan in CI would refuse the file otherwise.
 const FAKE_KEY = "test-key-not-a-real-one";
 
-/** Call the route the way Next.js does: path segments already decoded. */
+/**
+ * Call the route the way Next.js does: path segments already decoded. Each call comes from
+ * its own address, so the per-address limit never decides a test about something else.
+ */
+let caller = 0;
 function call(pathAndQuery: string, segments?: string[]) {
   const url = new URL(`http://localhost/api/proxy/${pathAndQuery}`);
   const path =
     segments ??
     url.pathname.replace(/^\/api\/proxy\//, "").split("/").map(decodeURIComponent);
-  return GET(new NextRequest(url), { params: Promise.resolve({ path }) });
+  const headers = { "x-forwarded-for": `198.51.100.${++caller % 250}` };
+  return GET(new NextRequest(url, { headers }), { params: Promise.resolve({ path }) });
 }
 
 function upstream(body: string, init: ResponseInit = {}) {

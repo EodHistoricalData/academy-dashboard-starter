@@ -1,7 +1,9 @@
 import { estimateCalls } from "@/lib/cost";
 import { configProblem, eodhdFetch, isMock, redactKey } from "@/lib/eodhd";
 import { checkScreenerQuery } from "@/lib/filters";
+import { allow, overCeiling, retryAfter } from "@/lib/rate-limit";
 import { toScreenRows } from "@/lib/screen-query";
+import { todayCount } from "@/lib/usage";
 
 /**
  * The endpoints the proxy will sign with your key and forward. Everything else is a 404.
@@ -40,16 +42,33 @@ type Answer = {
 // same calls again: a page that asks twice for one render, or two tabs opened at once.
 const inFlight = new Map<string, Promise<Answer>>();
 
+// Requests per caller in the last minute, for the per-address limit (src/lib/rate-limit.ts).
+const hits = new Map<string, number[]>();
+
 /**
  * Forward one GET to EODHD and answer it.
  *
  * `segments` is the path after /api/proxy/, as the router split it; `query` is the
- * caller's query string, from which any `api_token` is dropped.
+ * caller's query string, from which any `api_token` is dropped. `caller` is the address the
+ * route read from x-forwarded-for: on a host that sets that header itself it names the
+ * caller; where a client can write it, it is a hint, and the daily ceiling is what holds.
  */
 export async function proxy(
   segments: string[],
   query: URLSearchParams,
+  caller = "unknown",
 ): Promise<Response> {
+  const now = Date.now();
+  if (!allow(hits, caller, now)) {
+    const wait = retryAfter(hits, caller, now);
+    return Response.json(
+      {
+        error: `Too many requests from this address: this tool answers at most 30 a minute. Try again in ${wait} seconds.`,
+      },
+      { status: 429, headers: { "retry-after": String(wait), "cache-control": "no-store" } },
+    );
+  }
+
   const refusal = refuse(segments);
   if (refusal) return refusal;
 
@@ -81,6 +100,18 @@ export async function proxy(
       );
     }
     params = checked.params;
+  }
+
+  // The daily ceiling, before anything goes upstream: past 90% of the day this proxy stops
+  // asking, so strangers cannot spend the last of it. Reading the count costs no calls.
+  const { used, limit } = await todayCount(now);
+  if (overCeiling(used, limit)) {
+    return Response.json(
+      {
+        error: `This tool has stopped asking EODHD for today: ${used} of ${limit} calls are used, and the last tenth is kept back. It resumes at 00:00 UTC.`,
+      },
+      { status: 402, headers: { "cache-control": "no-store" } },
+    );
   }
 
   const target = segments.map(encodeURIComponent).join("/");

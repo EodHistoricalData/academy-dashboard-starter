@@ -169,3 +169,44 @@ app is affected, and CI now fails on the day something is.
   `eslint-config-next` to 15.5.29, a major version away from the Next.js 16 it lints. Look
   again at the next Next.js upgrade, or 2027-02-01, whichever comes first.
 
+
+## Security pass before going public, 2026-11-09
+
+Run as a list, each line with what showed it.
+
+1. No key in the working tree or the history: **pass**. `sh scripts/key-scan.sh` is clean;
+   `git log -p --all | grep -En '[0-9a-f]{12,}\.[0-9]{6,}'` finds three lines, all the same
+   made-up example in the key guard's documentation.
+2. Every proxy parameter validated or dropped: **fail**. The screener's query is rebuilt from
+   checked values, but for every other endpoint the proxy forwards any parameter except
+   `api_token` as it came (`src/lib/proxy.ts`, the loop over `query.entries()`). The
+   endpoint list limits where the key goes, not what is asked there.
+3. `limit` and ranges clamped server-side: **pass** for what costs: the screener's `limit` is
+   clamped to 100 (`tests/proxy.test.ts`, "clamps limit=100000 to 100"). A date range on
+   `eod` is not clamped, and costs one call whatever its length.
+4. A per-address rate limit on the proxy: **pass**. 30 a minute from one address, then 429
+   with `Retry-After`; and a daily ceiling at 90% of the limit, past which nothing goes
+   upstream (`tests/rate-limit.test.ts`).
+5. Store queries scoped by user, cross-user test asserting 404: **pass**. Every store
+   function takes the user first; `tests/store-scope.test.ts` asserts 404 for saved screens,
+   layouts and rules.
+6. No stack traces or upstream error bodies reaching the client: **fail, by design so far**.
+   The proxy passes EODHD's error body through, with the key cut out, because the body of a
+   403 is the only place that says which feed the plan lacks (README, course 2). On a
+   public URL that is upstream text served to strangers. No stack trace reaches the client:
+   a thrown error becomes "Could not reach EODHD" with the key redacted.
+7. Security headers, no `Access-Control-Allow-Origin: *`: **half**. No route sets
+   `Access-Control-Allow-Origin`, so the proxy is same-origin only. The proxy's answers carry
+   `nosniff` and a sandboxing CSP; the pages carry no security headers (`next.config.ts`
+   sets none).
+8. Dependency audit clean or its exceptions written down: **pass**. `npm audit --omit=dev` is
+   clean and in CI; the dev-only finding is above with its date.
+
+Asked adversarially, "how would you abuse this?", one answer that matters and is not on the
+list: the home, screen and backtest pages fetch on the server with the key, not through the
+proxy, so every visit to a public URL spends calls (7 on the home page) and neither limit
+sees it. The proxy's limits protect the dashboard's requests only. Until the pages share the
+ceiling, the URL stays private.
+
+Hammering the proxy from one address in mock mode: the first 30 requests a minute are
+answered, every one after that is 429.

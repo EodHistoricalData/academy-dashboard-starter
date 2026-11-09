@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
 import { buyAndHold } from "@/lib/backtest/baseline";
 import type { Bar } from "@/lib/backtest/candles";
+import { positions as positionsOf } from "@/lib/backtest/positions";
 import { backtest, DEFAULTS } from "@/lib/backtest/strategy";
 
 function synthetic(adj: number[]): Bar[] {
@@ -19,6 +20,12 @@ function synthetic(adj: number[]): Bar[] {
 const prices = [10, 9, 8, 7, 8, 9, 10, 11, 12, 11, 10, 9, 8];
 const bars = synthetic(prices);
 const params = { fast: 2, slow: 3, costBps: 0 };
+
+describe("positions(signal)", () => {
+  it("moves one bar after the signal: the first position is on the bar after it turns true", () => {
+    expect(positionsOf([null, null, false, true, true, false, false])).toEqual([0, 0, 0, 0, 1, 1, 0]);
+  });
+});
 
 describe("positions", () => {
   it("change on the bar after the signal, never on the signal bar", () => {

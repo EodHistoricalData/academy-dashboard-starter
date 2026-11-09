@@ -186,6 +186,13 @@ a choice to you, the section for that unit says which one we made. Yours can dif
 
 ## Backtest Strategies · unit 2: Rules and Positions
 
+- Files follow the rewritten lessons: `signal.ts` (the rule's signal), `positions.ts`
+  (positions(signal), one bar later), `strategy.ts` (positions into trades and curves),
+  `params.ts` (Params and DEFAULTS, re-exported by `strategy.ts`), `timeInMarket` in
+  `metrics.ts`; tests `leak.test.ts`, `positions.test.ts`, `benchmark.test.ts`. Our `sma`
+  takes `(values, n, i)` and `signals` takes `(bars, { fast, slow })`; the lesson's
+  versions take `(bars, i, n)` and `(bars, fast, slow)`: the same arithmetic.
+
 - The rule: `src/lib/backtest/signal.ts`, a 20/50 moving-average crossover on adjusted
   close, computed forwards in one pass. `sma` throws on a short window rather than averaging
   what `slice` returned. `tests/leak.test.ts` is the lesson's leak test (120 synthetic

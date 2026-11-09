@@ -1,19 +1,11 @@
 import type { Bar } from "@/lib/backtest/candles";
+import { timeInMarket } from "@/lib/backtest/metrics";
+import type { Params } from "@/lib/backtest/params";
+import { positions as positionsOf } from "@/lib/backtest/positions";
 import { signals } from "@/lib/backtest/signal";
 
-/**
- * Every assumption of a run, in one place, printed beside its result. Cost sits with the
- * rule's own numbers on purpose: it is a stated assumption of the run, not a setting.
- */
-export type Params = {
-  fast: number;
-  slow: number;
-  /** Charged on every position change, both ways: 10 bps in, 10 bps out. */
-  costBps: number;
-};
-
-/** Chosen from the rule's textbook form before looking at any result. */
-export const DEFAULTS: Params = { fast: 20, slow: 50, costBps: 10 };
+// The run's parameters live in params.ts; importers of the strategy find them here too.
+export { DEFAULTS, type Params } from "@/lib/backtest/params";
 
 export type Trade = {
   entryDate: string;
@@ -51,6 +43,7 @@ export type Run = {
  */
 export function backtest(bars: Bar[], params: Params): Run {
   const signal = signals(bars, params);
+  const wanted = positionsOf(signal); // the position each bar would hold, from the bar before
   const start = params.slow - 1;
   if (bars.length <= start) {
     return { dates: [], gross: [], net: [], positions: [], trades: [], timeInMarket: 0 };
@@ -68,7 +61,7 @@ export function backtest(bars: Bar[], params: Params): Run {
 
   for (let i = start + 1; i < bars.length; i++) {
     const held = positions[positions.length - 1];
-    const wants = signal[i - 1] === true; // yesterday's close decides today's position
+    const wants = wanted[i] === 1; // yesterday's close decides today's position
     let units: 0 | 1;
 
     if (held === 0 && !wants) {
@@ -102,8 +95,7 @@ export function backtest(bars: Bar[], params: Params): Run {
     trades.push(closeTrade(bars, open, last, n));
   }
 
-  const held = positions.filter((p) => p === 1).length;
-  return { dates, gross, net, positions, trades, timeInMarket: held / positions.length };
+  return { dates, gross, net, positions, trades, timeInMarket: timeInMarket(positions) };
 }
 
 function closeTrade(

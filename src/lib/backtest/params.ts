@@ -1,4 +1,16 @@
-import { DEFAULTS, type Params } from "@/lib/backtest/strategy";
+/**
+ * Every assumption of a run, in one place, printed beside its result. Cost sits with the
+ * rule's own numbers on purpose: it is a stated assumption of the run, not a setting.
+ */
+export type Params = {
+  fast: number;
+  slow: number;
+  /** Charged on every position change, both ways: 10 bps in, 10 bps out. */
+  costBps: number;
+};
+
+/** Chosen from the rule's textbook form before looking at any result. */
+export const DEFAULTS: Params = { fast: 20, slow: 50, costBps: 10 };
 
 /**
  * Parameters from the address bar, each checked against a range and dropped to its

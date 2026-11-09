@@ -17,3 +17,7 @@ export function maxDrawdown(curve: number[]): number {
   }
   return worst;
 }
+
+/** The share of bars that ended holding: what a comparison with buy and hold needs beside it. */
+export const timeInMarket = (position: (0 | 1)[]) =>
+  position.length === 0 ? 0 : position.reduce((held: number, p) => held + p, 0) / position.length;

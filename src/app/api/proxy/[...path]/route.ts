@@ -1,5 +1,6 @@
 import type { NextRequest } from "next/server";
 import { proxy } from "@/lib/proxy";
+import { readSession, SESSION_COOKIE } from "@/lib/session";
 
 // The key lives only on the server, so this must run in the Node.js runtime and
 // never be statically cached with a token baked in.
@@ -21,6 +22,18 @@ export async function GET(
   { params }: { params: Promise<{ path: string[] }> },
 ) {
   const { path } = await params;
+  // With a password set, the tool has an owner, and the proxy spends the owner's calls for
+  // the owner only: a visitor who has not signed in gets nothing upstream. Without one (mock
+  // mode, the course) it stays open, as the cockpit and the pages are.
+  if (
+    process.env.DASHBOARD_PASSWORD &&
+    !readSession(req.cookies.get(SESSION_COOKIE)?.value, process.env.SESSION_SECRET, Date.now())
+  ) {
+    return Response.json(
+      { error: "Sign in at /login first: this proxy spends the owner's API calls.", kind: "signed-out" },
+      { status: 401, headers: { "cache-control": "no-store" } },
+    );
+  }
   // The first address in x-forwarded-for, for the per-address limit in src/lib/proxy.ts.
   const caller = req.headers.get("x-forwarded-for")?.split(",")[0]?.trim() || "unknown";
   return proxy(path, new URL(req.url).searchParams, caller, req.headers.get("x-budget"));

@@ -33,6 +33,8 @@ export class ProxyError extends Error {
 export function failureOf(error: unknown): Failure {
   if (error instanceof ProxyError) {
     if (error.status === 503 && kindOf(error.body) === "no-key") return { kind: "no-key" };
+    // Our own proxy asking for the owner, not EODHD rejecting the key.
+    if (error.status === 401 && kindOf(error.body) === "signed-out") return { kind: "signed-out" };
     // The proxy's own quota policy, not EODHD's spent day: a refresh by hand still works.
     const held = heldBy(error.body);
     if (error.status === 402 && held) return held;

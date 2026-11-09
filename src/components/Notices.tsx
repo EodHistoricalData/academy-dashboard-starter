@@ -124,6 +124,8 @@ function explain(failure: Exclude<Failure, { kind: "no-key" }>): {
         title: "EODHD does not know what was asked for (404)",
         steps: [failure.detail, "Check the ticker, including its exchange suffix."],
       };
+    case "signed-out":
+      return { title: "Sign in to see live data", steps: ["Sign in at /login."] };
     case "held":
       // Only a browser request through the proxy is held back; listed so the page can say it.
       return {

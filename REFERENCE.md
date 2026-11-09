@@ -429,3 +429,30 @@ a choice to you, the section for that unit says which one we made. Yours can dif
 - `LICENSE` has `Copyright (c) 2026 Your Name` under the starter's line: the name is the
   learner's to type. The footer links the starter's `NOTICE` on GitHub; a fork should point
   it at its own.
+
+## Ship Your Tool · unit 2: Production Discipline
+
+- CI's last step, "Key stays in eodhd.ts", as in the lesson. Four files named the variable
+  without reading it, in sentences: the proxy's no-key answer now takes `configProblem`'s
+  sentence from `src/lib/eodhd.ts` and marks itself `kind: "no-key"`, which the browser
+  reads instead of searching the body for the name; the other sentences say "the key in
+  `.env.local`". The command prints nothing on this branch and names the file when one
+  reads the key. The red runs the lesson asks for need pull requests, which a reference
+  branch does not open.
+- 12 packages declared (3 ship), 497 in the lockfile. `npm audit`: 8 moderate, one dev-only
+  chain to `minimatch` through `eslint-config-next`, whose only fix is a major version back;
+  left open in `REVIEW.md` with a date. `npm audit --omit=dev` is clean and runs in CI after
+  `npm ci`.
+- `src/lib/rate-limit.ts` is the lesson's `allow` and `overCeiling`, plus `retryAfter`. The
+  count the ceiling reads lives in `src/lib/usage.ts` (`todayCount`, cached for a minute),
+  so tests can hand the proxy any count; `tests/proxy.test.ts` gives each call its own
+  address so the limit never decides a test about something else. The eight-item list is
+  in `REVIEW.md`: parameters other than the screener's are forwarded as they came, upstream
+  error bodies reach the client by the starter's design, and the pages have no security
+  headers; written down as fails, not fixed, as the lesson asks for the list only. The
+  adversarial question found the bigger gap: the server-rendered pages spend calls on every
+  visit, outside both limits.
+- `src/lib/log.ts`, `/api/health` and `/api/client-error` as in the lesson. The store's half
+  of the health check is `storeReadable()` in `src/lib/store.ts`: a query, and the file
+  still where it was. Renaming the data folder under a running server cannot be tried on
+  Windows, which keeps the open file locked; `tests/health.test.ts` covers the store down.

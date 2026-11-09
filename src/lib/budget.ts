@@ -85,3 +85,42 @@ export function marketOpen(symbol: string, now: number): boolean {
   const minutes = Number(part("hour")) * 60 + Number(part("minute"));
   return minutes >= session.open && minutes < session.close;
 }
+
+/**
+ * Stop before the wall, not at it. The loop refreshes only while the calls left cover one
+ * more refresh plus a reserve; a refresh by hand may spend the reserve, and nothing past it.
+ */
+export function shouldRefresh(a: {
+  used: number;
+  limit: number;
+  perRefresh: number;
+  reserve: number;
+  byHand: boolean;
+}) {
+  const left = a.limit - a.used;
+  return a.byHand ? left >= a.perRefresh : left >= a.perRefresh + a.reserve;
+}
+
+/** What the cockpit says when it stops: the count, the limit and when it resumes. */
+export function pausedLine(usage: { used: number; limit: number } | null): string {
+  return usage
+    ? `Refresh paused: ${usage.used} of ${usage.limit} calls used today, resets at 00:00 UTC.`
+    : "Refresh paused: today’s calls are used up, resets at 00:00 UTC.";
+}
+
+/**
+ * One request, as the limits allow. A 429 is a busy minute: wait for Retry-After (at most a
+ * minute) and ask once more. A 402 is a spent day: it comes back at once and is never
+ * retried, because asking again before midnight only fails again.
+ */
+export async function askWithinLimits(
+  send: () => Promise<Response>,
+  wait: (ms: number) => Promise<void> = (ms) => new Promise((r) => setTimeout(r, ms)),
+): Promise<Response> {
+  const first = await send();
+  if (first.status !== 429) return first;
+  const header = first.headers.get("retry-after");
+  const seconds = header === null ? NaN : Number(header); // a date or nothing: wait the minute
+  await wait(Number.isFinite(seconds) && seconds >= 0 ? Math.min(seconds, 60) * 1000 : 60_000);
+  return send();
+}

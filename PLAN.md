@@ -263,3 +263,20 @@ the script says "no change". Measuring costs 20 calls, a whole free day, so it w
 day the allowance is not needed for anything else. Until then the cockpit assumes the feed's
 own resolution: the fixture's quotes are stamped to the minute, so nothing refreshes faster
 than once a minute.
+
+### The wall
+
+```
+Calls per refresh:        13    (refreshCost on the default layout: 7 quotes, a screen at 5, SPY's history)
+Daily allowance:          20    (the usage route, free plan)
+Refreshes it buys:        1
+Alert loop needs:         78 calls/day   (one rule symbol, checked every 5 minutes for 6.5 hours)
+Therefore alerts:         cannot run; rules are checked while the page is open, until the allowance is spent
+```
+
+The page load is the one refresh a free day buys. After it the loop holds back: 7 calls left,
+and 13 kept for a refresh by hand, which does not fit either, so the cockpit says "Refresh
+paused" with the count and the reset at 00:00 UTC, and every panel keeps its rows with their
+age. Set to "by hand" everything except the quote panel, and the loop costs 2 calls a
+minute (the quote and the rule's symbol), which still empties the day in ten minutes. On this
+plan the honest interval is by hand.

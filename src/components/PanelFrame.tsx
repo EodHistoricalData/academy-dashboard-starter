@@ -34,9 +34,9 @@ export function PanelFrame({
       }}
       className={`flex min-w-0 flex-col ${panel.collapsed ? "self-start" : ""} rounded-lg border border-zinc-200 bg-white dark:border-zinc-800 dark:bg-zinc-900 max-sm:![grid-column:auto] max-sm:![grid-row:auto]`}
     >
-      <header className="flex items-baseline justify-between gap-3 border-b border-zinc-100 px-4 py-2.5 dark:border-zinc-800">
+      <header className="flex flex-wrap items-baseline justify-between gap-x-3 gap-y-1 border-b border-zinc-100 px-4 py-2.5 dark:border-zinc-800">
         <PanelTitle title={panel.title} onRename={onRename} />
-        <span className="flex shrink-0 items-baseline gap-3 text-xs text-zinc-500 dark:text-zinc-400">
+        <span className="ml-auto flex shrink-0 items-baseline gap-3 text-xs text-zinc-500 dark:text-zinc-400">
           {!panel.collapsed && (aside ?? panel.type)}
           {panel.type !== "placeholder" &&
             (onRefresh ? (

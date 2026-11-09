@@ -1,5 +1,5 @@
 import { type Bar, toBars } from "@/lib/backtest/bars";
-import type { Request } from "@/lib/budget";
+import { askWithinLimits, type Request } from "@/lib/budget";
 import { type Failure, failureFromStatus } from "@/lib/failure";
 import { toTriples } from "@/lib/filters";
 import type { ScreenConfig } from "@/lib/layout";
@@ -39,7 +39,8 @@ export function failureOf(error: unknown): Failure {
 
 async function getJson(path: string, params: Record<string, string> = {}): Promise<unknown> {
   const query = new URLSearchParams(params).toString();
-  const res = await fetch(`/api/proxy/${path}${query ? `?${query}` : ""}`);
+  // A 429 waits and asks once more; a 402 is never retried (src/lib/budget.ts).
+  const res = await askWithinLimits(() => fetch(`/api/proxy/${path}${query ? `?${query}` : ""}`));
   if (!res.ok) {
     throw new ProxyError(res.status, res.headers.get("retry-after"), await res.text());
   }

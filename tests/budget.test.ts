@@ -1,13 +1,21 @@
-import { describe, expect, it } from "vitest";
+import { afterEach, describe, expect, it, vi } from "vitest";
 import { BacktestPanel } from "@/components/panels/BacktestPanel";
 import { QuotePanel } from "@/components/panels/QuotePanel";
 import { ScreenPanel } from "@/components/panels/ScreenPanel";
 import { WatchlistPanel } from "@/components/panels/WatchlistPanel";
-import { callsPerMinute, exhaustsAt, marketOpen, refreshCost } from "@/lib/budget";
+import {
+  askWithinLimits,
+  callsPerMinute,
+  exhaustsAt,
+  marketOpen,
+  pausedLine,
+  refreshCost,
+  shouldRefresh,
+} from "@/lib/budget";
 import { DEFAULT_SORT } from "@/lib/filters";
 import { DEFAULT_LAYOUT, type Panel } from "@/lib/layout";
 import type { Needs } from "@/lib/panels";
-import { fetchPlan, requestsOf, without } from "@/lib/proxy-fetch";
+import { failureOf, fetchPlan, quotesViaProxy, requestsOf, without } from "@/lib/proxy-fetch";
 import { RULES } from "@/lib/rules";
 import { MY_FILTERS } from "@/lib/screen-query";
 
@@ -87,5 +95,69 @@ describe("marketOpen", () => {
   it("keeps crypto open, and an exchange it does not know counts as open", () => {
     expect(marketOpen("BTC-USD.CC", Date.UTC(2026, 10, 7, 3, 0))).toBe(true);
     expect(marketOpen("SAP.XETRA", Date.UTC(2026, 10, 7, 3, 0))).toBe(true);
+  });
+});
+
+describe("shouldRefresh", () => {
+  const at = { limit: 20, perRefresh: 7, reserve: 13 };
+
+  it("stops the loop once the calls left would not cover a refresh plus the reserve", () => {
+    expect(shouldRefresh({ ...at, used: 0, byHand: false })).toBe(true); // 20 >= 7 + 13
+    expect(shouldRefresh({ ...at, used: 1, byHand: false })).toBe(false); // 19 left
+  });
+
+  it("lets a refresh by hand spend the reserve, and nothing past the limit", () => {
+    expect(shouldRefresh({ ...at, used: 1, byHand: true })).toBe(true);
+    expect(shouldRefresh({ ...at, used: 13, byHand: true })).toBe(true); // 7 left, 7 needed
+    expect(shouldRefresh({ ...at, used: 14, byHand: true })).toBe(false);
+  });
+});
+
+describe("pausedLine", () => {
+  it("names the count, the limit and the reset, and nothing went wrong", () => {
+    expect(pausedLine({ used: 20, limit: 20 })).toBe(
+      "Refresh paused: 20 of 20 calls used today, resets at 00:00 UTC.",
+    );
+    expect(pausedLine(null)).toBe("Refresh paused: today’s calls are used up, resets at 00:00 UTC.");
+  });
+});
+
+describe("at the wall", () => {
+  afterEach(() => vi.unstubAllGlobals());
+  const answer = (status: number, headers: Record<string, string> = {}, body = "") =>
+    new Response(body, { status, headers });
+
+  it("a 402 is never retried: one request, and the failure is the spent day", async () => {
+    const fetcher = vi.fn(async () => answer(402, {}, "Payment required"));
+    vi.stubGlobal("fetch", fetcher);
+    const error = await quotesViaProxy(["AAPL.US", "MSFT.US"]).catch((e: unknown) => e);
+    expect(fetcher).toHaveBeenCalledTimes(1);
+    expect(failureOf(error)).toEqual({ kind: "quota" });
+  });
+
+  it("a 429 waits for Retry-After, then asks once more", async () => {
+    const waits: number[] = [];
+    const send = vi
+      .fn<() => Promise<Response>>()
+      .mockResolvedValueOnce(answer(429, { "retry-after": "3" }))
+      .mockResolvedValueOnce(answer(200, {}, "[]"));
+    const res = await askWithinLimits(send, async (ms) => void waits.push(ms));
+    expect(res.status).toBe(200);
+    expect(send).toHaveBeenCalledTimes(2);
+    expect(waits).toEqual([3000]);
+  });
+
+  it("waits the whole minute when Retry-After is missing", async () => {
+    const waits: number[] = [];
+    const send = vi.fn(async () => answer(429));
+    await askWithinLimits(send, async (ms) => void waits.push(ms));
+    expect(waits).toEqual([60_000]);
+  });
+
+  it("a second 429 is handed back, not chased", async () => {
+    const send = vi.fn(async () => answer(429, { "retry-after": "1" }));
+    const res = await askWithinLimits(send, async () => {});
+    expect(res.status).toBe(429);
+    expect(send).toHaveBeenCalledTimes(2);
   });
 });

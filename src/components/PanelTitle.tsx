@@ -28,7 +28,7 @@ export function PanelTitle({ title, onRename }: { title: string; onRename?: (nex
     );
   }
   return (
-    <h2 className="flex min-w-0 items-baseline gap-2 text-sm font-medium">
+    <h2 className="flex min-w-[8rem] items-baseline gap-2 text-sm font-medium">
       <span className="truncate">{title}</span>
       <button
         type="button"

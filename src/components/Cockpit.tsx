@@ -16,10 +16,12 @@ import {
   callsPerMinute,
   exhaustsAt,
   marketOpen,
+  pausedLine,
   REFRESH,
   REFRESH_EVERY_MS,
   type Refresh,
   refreshCost,
+  shouldRefresh,
 } from "@/lib/budget";
 import { putDocViaRoute } from "@/lib/doc-client";
 import { type Failure, failureSentence } from "@/lib/failure";
@@ -270,14 +272,11 @@ export function Cockpit({
   }, [stores, signedIn]);
 
   /**
-   * `withRules`: the rules' symbols ride along, so the rules are checked on the answer. The
-   * loop and a refresh by hand send them; a retry of one panel does not.
+   * `ruleSymbols` ride along, so the rules are checked on the answer: the loop sends those
+   * whose market is open, a refresh by hand sends all, a retry of one panel none.
    */
   const fetchFor = useCallback(
-    async (needs: Needs[], force: boolean, withRules: boolean) => {
-      const ruleSymbols = withRules
-        ? rulesNow.current.filter((r) => r.enabled).map((r) => r.ticker)
-        : [];
+    async (needs: Needs[], force: boolean, ruleSymbols: string[]) => {
       // The same plan the budget prices: see requestsOf in src/lib/proxy-fetch.ts.
       const { symbols, screens, histories } = fetchPlan(needs, ruleSymbols);
 
@@ -349,11 +348,10 @@ export function Cockpit({
       };
       return part.quotes.length > 0 || part.screen || part.eod ? [part] : [];
     });
-    let rulesMissing = false;
-    for (const r of rulesNow.current) {
-      if (r.enabled && !loaded.quotes.has(r.ticker) && ask(`quote:${r.ticker}`)) rulesMissing = true;
-    }
-    if (missing.length === 0 && !rulesMissing) return;
+    const rulesMissing = rulesNow.current.flatMap((r) =>
+      r.enabled && !loaded.quotes.has(r.ticker) && ask(`quote:${r.ticker}`) ? [r.ticker] : [],
+    );
+    if (missing.length === 0 && rulesMissing.length === 0) return;
     // Started after this render, so the effect itself sets no state. A request already in
     // flight for the same symbols is shared by the store, not sent twice.
     void Promise.resolve().then(() => fetchFor(missing, false, rulesMissing));
@@ -400,12 +398,27 @@ export function Cockpit({
     });
   }, [layout, needsByPanel, ruleSymbols]);
 
+  // The wall. A 402 means the day is spent: nothing more is sent until midnight UTC. Before
+  // that, the meter decides: the loop keeps one refresh by hand in reserve, and a refresh by
+  // hand may spend it. Without a meter or a price, nothing is held back on a guess.
+  const meter =
+    usage?.used != null && usage.limit != null ? { used: usage.used, limit: usage.limit } : null;
+  const spent = [...failures.values()].some((f) => f.kind === "quota");
+  const allows = (perRefresh: number | null, byHand: boolean) =>
+    !spent &&
+    (meter === null ||
+      perRefresh === null ||
+      shouldRefresh({ ...meter, perRefresh, reserve: handPrice ?? 0, byHand }));
+  const byHandAllowed = allows(handPrice, true);
+  const loopAllowed = allows(rounds[0]?.cost ?? 0, false);
+
   /**
-   * One pass of the loop. Nothing while the tab is hidden; otherwise every panel whose
-   * interval has passed since its data arrived, minus the symbols whose market is closed.
+   * One pass of the loop. Nothing while the tab is hidden or the wall is near; otherwise
+   * every panel whose interval has passed since its data arrived, minus the symbols whose
+   * market is closed, if what that costs leaves the reserve standing.
    */
   const tick = (at: number) => {
-    if (document.visibilityState === "hidden") return;
+    if (document.visibilityState === "hidden" || spent) return;
     const due = layout.panels.flatMap((panel, i) => {
       const needs = needsByPanel[i];
       const every = REFRESH_EVERY_MS[panel.refresh];
@@ -416,8 +429,26 @@ export function Cockpit({
       return open ? [open] : [];
     });
     if (due.length === 0) return;
-    void fetchFor(due, false, true).then(readUsage);
+    const rulesOpen = ruleSymbols.filter((s) => marketOpen(s, at));
+    if (!allows(refreshCost(requestsOf(fetchPlan(due, rulesOpen))), false)) return;
+    void fetchFor(due, false, rulesOpen).then(readUsage);
   };
+
+  // Whether any open panel that refreshes by itself has a market open now.
+  const anyOpen = layout.panels.some((panel, i) => {
+    const needs = needsByPanel[i];
+    return needs && !panel.collapsed && panel.refresh !== "manual" && openPart(needs, now) !== null;
+  });
+  const hasLoop = rounds.length > 0;
+  const paused = !byHandAllowed;
+  // After a 402 the meter can lag behind the answer; then the line does not quote it.
+  const status = paused
+    ? pausedLine(meter && (meter.used >= meter.limit || !spent) ? meter : null)
+    : hasLoop && !loopAllowed
+      ? `Automatic refresh is holding back: ${meter!.limit - meter!.used} calls are left today, and ${handPrice} of them are kept for one refresh by hand, which still works.`
+      : hasLoop && !anyOpen
+        ? "Automatic refresh is waiting: the markets on screen are closed, so there is nothing new to fetch."
+        : null;
   const tickNow = useRef(tick);
   useEffect(() => {
     tickNow.current = tick;
@@ -568,6 +599,11 @@ export function Cockpit({
     <div className="flex flex-col gap-4">
       <OldestLine ages={ages} />
       <BudgetLine usage={usage} handPrice={handPrice} perMinute={callsPerMinute(rounds)} now={now} />
+      {status && (
+        <p role="status" className="text-sm font-medium">
+          {status}
+        </p>
+      )}
       <div className="flex flex-wrap items-start gap-4">
         <div className="min-w-0 flex-1">
           <LayoutSwitcher
@@ -582,8 +618,10 @@ export function Cockpit({
         </div>
         <button
           type="button"
-          onClick={() => void fetchFor(openNeeds, true, true).then(readUsage)}
-          className="rounded border border-zinc-300 px-2.5 py-1 text-sm dark:border-zinc-700"
+          onClick={() => void fetchFor(openNeeds, true, ruleSymbols).then(readUsage)}
+          disabled={!byHandAllowed}
+          title={status ?? undefined}
+          className="rounded border border-zinc-300 px-2.5 py-1 text-sm disabled:opacity-50 dark:border-zinc-700"
         >
           Refresh
         </button>
@@ -632,7 +670,7 @@ export function Cockpit({
               onRename={onRename}
               onCollapse={onCollapse}
               onRefresh={onRefresh}
-              aside={asideFor(state.kind, ageOf(needs, data, now))}
+              aside={asideFor(state.kind, ageOf(needs, data, now), paused)}
             >
               <PanelBoundary>
                 {state.kind === "loading" ? (
@@ -641,7 +679,8 @@ export function Cockpit({
                   <div className="flex flex-col gap-3">
                     <Failed
                       failure={state.failure}
-                      onRetry={() => void fetchFor([needs], true, false)}
+                      canRetry={allows(refreshCost(requestsOf(fetchPlan([needs]))), true)}
+                      onRetry={() => void fetchFor([needs], true, []).then(readUsage)}
                     />
                     {state.rows !== null && body}
                   </div>
@@ -733,8 +772,10 @@ const ageText = (age: Age) =>
   age.kind === "live" ? describeAge(age.seconds) : `end of day, ${age.date}`;
 
 /** The small text at the right of a panel's title: its state, and the age of what it shows. */
-function asideFor(kind: string, age: Age | null): string {
+function asideFor(kind: string, age: Age | null, paused: boolean): string {
   const text = age ? ageText(age) : null;
+  // At the wall the rows stay, labelled: stale, with their real age.
+  if (paused && kind === "ready" && text) return `${text} · stale, refresh paused`;
   switch (kind) {
     case "loading":
       return "Loading…";
@@ -796,8 +837,10 @@ function BudgetLine({
     projection = "nothing refreshes by itself at this schedule";
   } else if (usage?.used == null || usage.limit == null) {
     projection = `this schedule spends ${Math.round(perMinute * 60)} calls an hour while markets are open`;
+  } else if (usage.used >= usage.limit) {
+    projection = "the limit is reached";
   } else {
-    const at = exhaustsAt(Math.max(0, usage.limit - usage.used), perMinute, 60_000, now)!;
+    const at = exhaustsAt(usage.limit - usage.used, perMinute, 60_000, now)!;
     projection = `at this schedule (${Math.round(perMinute * 60)} calls an hour while markets are open) the limit is reached at ${at.toISOString().slice(11, 16)} UTC`;
   }
   return (
@@ -818,10 +861,19 @@ function Skeleton() {
   );
 }
 
-function Failed({ failure, onRetry }: { failure: Failure; onRetry(): void }) {
+function Failed({
+  failure,
+  canRetry,
+  onRetry,
+}: {
+  failure: Failure;
+  /** False at the wall: a retry is a refresh by hand, and the budget decides those. */
+  canRetry: boolean;
+  onRetry(): void;
+}) {
   const { what, next } = failureSentence(failure);
   // A spent day never retries: asking again before midnight only fails again.
-  const retry = failure.kind !== "quota" && failure.kind !== "no-key";
+  const retry = canRetry && failure.kind !== "quota" && failure.kind !== "no-key";
   return (
     <div className="flex flex-col items-start gap-1.5 rounded border border-zinc-200 bg-zinc-50 p-3 dark:border-zinc-800 dark:bg-zinc-950">
       <p className="font-medium">{what}</p>

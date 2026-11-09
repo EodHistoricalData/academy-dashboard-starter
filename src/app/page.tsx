@@ -2,16 +2,9 @@ import { Alerts } from "@/components/Alerts";
 import { Freshness } from "@/components/Freshness";
 import { NotesProvider, NotesStatus } from "@/components/NoteField";
 import { SortedWatchlist } from "@/components/SortedWatchlist";
-import {
-  CallFailed,
-  Code,
-  MockMode,
-  NoKey,
-  StoreNotice,
-  UserLine,
-} from "@/components/Notices";
+import { CallFailed, Code, MockMode, StoreNotice, UserLine } from "@/components/Notices";
 import { WallMeter } from "@/components/WallMeter";
-import { hasKey, isMock } from "@/lib/eodhd";
+import { isMock } from "@/lib/eodhd";
 import { oldestTimestamp } from "@/lib/market-store";
 import { account, pageLoadCalls, quotes } from "@/lib/quotes";
 import { Nav } from "@/components/Nav";
@@ -36,11 +29,9 @@ export default async function Home() {
   const { rules, error: rulesError } = rulesFor(user);
 
   // Two independent requests, so they go together rather than one waiting on the other.
-  // quotes() checks for the key itself and sends nothing without one.
-  const [result, plan] = await Promise.all([
-    quotes(list),
-    mock || hasKey() ? account() : Promise.resolve(null),
-  ]);
+  // There is always a key or mock mode here: without either the server does not start
+  // (src/instrumentation.ts), so this page has no no-key branch.
+  const [result, plan] = await Promise.all([quotes(list), account()]);
   const rows = "rows" in result ? result.rows : null;
   const failure = "failure" in result ? result.failure : null;
 
@@ -64,11 +55,8 @@ export default async function Home() {
 
         <StoreNotice error={notesRead.error ?? rulesError} />
 
-        {failure?.kind === "no-key" && <NoKey />}
-
-        {failure && failure.kind !== "no-key" && (
-          <CallFailed failure={failure} />
-        )}
+        {/* "no-key" cannot reach here: the server does not start without a key. */}
+        {failure && failure.kind !== "no-key" && <CallFailed failure={failure} />}
 
         {/* No wrapping section with a hidden "Watchlist" heading: the h1 above already
             says it and the table carries its own caption, so that made three announcements

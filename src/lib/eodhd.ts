@@ -16,6 +16,24 @@ function eodhdKey(): string {
   return key;
 }
 
+/** Values that are in the key's place but are not a key: empty, and the old placeholder. */
+const NOT_A_KEY = new Set(["", "your_key_here"]);
+
+/**
+ * What is wrong with the configuration, in one sentence, or null when the app can run: mock
+ * mode is on, or the key holds a real value. src/instrumentation.ts throws this sentence as
+ * the server starts, so nobody meets a page of empty panels. Takes the environment as a
+ * parameter so a test can hand it one.
+ */
+export function configProblem(env: Record<string, string | undefined>): string | null {
+  if (/^(1|true|yes)$/i.test(env.EODHD_MOCK ?? "")) return null;
+  if (!NOT_A_KEY.has((env.EODHD_API_KEY ?? "").trim())) return null;
+  return (
+    "EODHD_API_KEY is not set: copy .env.example to .env.local and add your key, " +
+    "or set EODHD_MOCK=1 to run on fixtures."
+  );
+}
+
 /** Whether a key is set at all. Says nothing about whether the API will accept it. */
 export function hasKey(): boolean {
   return Boolean(process.env.EODHD_API_KEY);

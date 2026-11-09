@@ -33,3 +33,21 @@ test("the close carries its currency on every row", () => {
     "$186.75",
   );
 });
+
+test("a price says its currency, from the exchange: London quotes in pence", async () => {
+  const { currencyOf } = await import("@/lib/format");
+  expect(currencyOf("AAPL.US")).toBe("USD");
+  expect(currencyOf("VOD.LSE")).toBe("GBX");
+  expect(currencyOf("SAP.XETRA")).toBe("EUR");
+  expect(currencyOf("005930.KO")).toBe("KRW");
+  expect(currencyOf("BTC-USD.CC")).toBe("USD");
+  expect(currencyOf("EURUSD.FOREX")).toBe("USD");
+  expect(currencyOf("ABC.XYZ")).toBeNull(); // unknown: no unit rather than a guessed one
+});
+
+test("the watchlist's Last column carries the unit", async () => {
+  const { PRICE_COLUMNS } = await import("@/components/Watchlist");
+  const last = PRICE_COLUMNS.find((c) => c.key === "close")!;
+  const row = { code: "VOD.LSE", timestamp: 0, close: 71.4, previousClose: 70, change: 1.4, change_p: 2, volume: 1 };
+  expect(last.render(row)).toBe("71.40 GBX");
+});

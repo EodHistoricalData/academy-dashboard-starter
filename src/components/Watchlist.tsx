@@ -1,5 +1,6 @@
 import { type Column, DataTable } from "@/components/DataTable";
 import { NoteField } from "@/components/NoteField";
+import { currencyOf } from "@/lib/format";
 import { isAvailable, type Row } from "@/lib/rows";
 
 /**
@@ -14,7 +15,8 @@ export const PRICE_COLUMNS: Column<Row>[] = [
     key: "close",
     label: "Last",
     align: "right",
-    render: (r) => (isAvailable(r) ? fmt(r.close) : null),
+    // With its currency: the list mixes exchanges, and London quotes in pence.
+    render: (r) => (isAvailable(r) ? withUnit(fmt(r.close), currencyOf(r.code)) : null),
   },
   {
     key: "change",
@@ -91,3 +93,5 @@ function fmt(n: number): string {
 function signed(n: number): string {
   return `${n > 0 ? "+" : n < 0 ? "−" : ""}${fmt(Math.abs(n))}`;
 }
+
+const withUnit = (value: string, unit: string | null) => (unit ? `${value} ${unit}` : value);

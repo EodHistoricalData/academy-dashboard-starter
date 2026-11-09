@@ -34,3 +34,26 @@ export function compact(n: number): string {
   if (abs >= 1e6) return `${(n / 1e6).toFixed(2)}M`;
   return n.toLocaleString("en-US");
 }
+
+/**
+ * The currency a symbol is quoted in, from its exchange, or null when this table does not
+ * know it: no unit rather than a guessed one. London quotes in pence (GBX), not pounds; a
+ * crypto or FX pair is quoted in its second currency. Without this, 71.40 for VOD.LSE and
+ * 668.20 for SPY.US sit in one column looking like the same kind of number.
+ */
+const EXCHANGE_CURRENCY: Record<string, string> = {
+  US: "USD",
+  LSE: "GBX",
+  XETRA: "EUR",
+  KO: "KRW",
+};
+
+export function currencyOf(symbol: string): string | null {
+  const dot = symbol.lastIndexOf(".");
+  const code = symbol.slice(0, dot);
+  const exchange = symbol.slice(dot + 1);
+  if (exchange === "CC") return code.split("-")[1] ?? null;
+  if (exchange === "FOREX") return code.length === 6 ? code.slice(3) : null;
+  return EXCHANGE_CURRENCY[exchange] ?? null;
+}
+

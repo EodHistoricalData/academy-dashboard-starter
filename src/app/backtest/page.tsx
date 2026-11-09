@@ -38,10 +38,15 @@ export default async function BacktestPage({
 }) {
   const params = paramsFrom(await searchParams);
   const mock = isMock();
-  const [candles, plan] = await Promise.all([
+  const [loaded, plan] = await Promise.all([
     loadCandles(SYMBOL),
     mock || hasKey() ? account() : Promise.resolve(null),
   ]);
+  // `from` trims the history already cached: no request, the meter does not move.
+  const candles =
+    "bars" in loaded && params.from
+      ? { ...loaded, bars: loaded.bars.filter((b) => b.date >= params.from!) }
+      : loaded;
 
   let tried = 0;
   if ("bars" in candles) {

@@ -241,6 +241,15 @@ a choice to you, the section for that unit says which one we made. Yours can dif
 
 ## Backtest Strategies · unit 4: Robustness, and the Wall
 
+- Files follow the rewritten lessons: the walk-forward is `split.ts`, with the split
+  written down as `SPLIT_DATE = "2026-07-16"`, 70% through the fixture's year and the same
+  bar (175) the share gave; time under water is in `metrics.ts` with
+  `tests/metrics.test.ts`. `from` (YYYY-MM-DD) in the address trims the cached history for
+  the history wall, without a request. `PLAN.md` now says the fixture's year is invented
+  and holds no regime, instead of describing it as if it were a real year. Our
+  `timeUnderWater(curve)` returns bar indexes, where the lesson's takes the dates as well
+  and returns them: the same run, read the same way.
+
 - Drawdown properly: `timeUnderWater` and `returnOverDrawdown` in
   `src/lib/backtest/metrics.ts`, tested on a hand-worked series. The page prints max
   drawdown, time under water and return over drawdown for both lines, and shades the

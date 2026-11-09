@@ -27,3 +27,11 @@ describe("neighbours", () => {
     ]);
   });
 });
+
+describe("from", () => {
+  it("trims the run to a date written as YYYY-MM-DD, and ignores anything else", () => {
+    expect(paramsFrom({ from: "2026-03-02" }).from).toBe("2026-03-02");
+    expect(paramsFrom({ from: "March" }).from).toBeUndefined();
+    expect(paramsFrom({}).from).toBeUndefined();
+  });
+});

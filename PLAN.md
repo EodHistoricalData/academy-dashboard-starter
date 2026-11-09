@@ -187,10 +187,10 @@ making new highs? Probably not, which is a result in itself.
 ### The history wall, in my numbers
 
 ```
-History available:   2025-10-31 to 2026-10-30   (251 bars, the fixture's year;
+History available:   2025-10-31 to 2026-10-30   (251 bars, invented: mock mode;
                      the free plan reaches back one year)
-Regimes in sample:   one year: a rally, a spring drawdown of about 9%, a recovery
-Regimes NOT tested:  2008, 2020, 2022, every rate cycle before 2025
+Regimes in sample:   none: invented prices belong to no history
+Regimes NOT tested:  2008, 2020, 2022, and every rate cycle before this window
 ```
 
 The "everything against 2015-onward" comparison cannot be run here: all of it is after

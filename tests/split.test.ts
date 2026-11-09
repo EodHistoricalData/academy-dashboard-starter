@@ -2,13 +2,14 @@ import { readFileSync } from "node:fs";
 import { describe, expect, it } from "vitest";
 import type { Bar } from "@/lib/backtest/candles";
 import { DEFAULTS } from "@/lib/backtest/strategy";
-import { GRID, outOfSample, splitIndex, tune } from "@/lib/backtest/split";
+import { GRID, outOfSample, SPLIT_DATE, splitIndex, tune } from "@/lib/backtest/split";
 
 const spy: Bar[] = JSON.parse(readFileSync("fixtures/eod/SPY.US.json", "utf8"));
 
 describe("in-sample, then out-of-sample once", () => {
   it("splits by date, 70% first", () => {
     expect(splitIndex(spy)).toBe(175);
+    expect(spy[splitIndex(spy)].date).toBe(SPLIT_DATE); // 70% through the fixture's year
   });
 
   it("tunes without seeing the out-of-sample bars", () => {

@@ -14,8 +14,17 @@ import { totalReturn } from "@/lib/backtest/metrics";
 /** The parameter sets tried in-sample: fast × slow, costs and fills unchanged. */
 export const GRID = { fast: [10, 15, 20, 25, 30], slow: [40, 50, 60] };
 
-export function splitIndex(bars: Bar[], inSampleShare = 0.7): number {
-  return Math.floor(bars.length * inSampleShare);
+/**
+ * The split, as a date written down before any run: 70% through the year of mock bars.
+ * Yours is 70% through your own history. A date, not a share, so it cannot drift when the
+ * history grows by a bar.
+ */
+export const SPLIT_DATE = "2026-07-16";
+
+/** The index of the first out-of-sample bar: the first on or after SPLIT_DATE. */
+export function splitIndex(bars: Bar[]): number {
+  const at = bars.findIndex((b) => b.date >= SPLIT_DATE);
+  return at === -1 ? bars.length : at;
 }
 
 /**

@@ -16,6 +16,11 @@ export type Params = {
    * only once the bar had closed, and is kept to show how much it flatters.
    */
   fill: "next-open" | "signal-close";
+  /**
+   * Run from this date only (YYYY-MM-DD): a trim of the history already cached, never a
+   * new request. How the history wall is tested on the bars you have.
+   */
+  from?: string;
 };
 
 /** Chosen from the rule's textbook form and the course's cost default, before any result. */
@@ -46,9 +51,11 @@ export function paramsFrom(query: Record<string, string | string[] | undefined>)
   const costBps = int("costBps", 0, 100);
   const slippageBps = int("slippageBps", 0, 100);
   const fill = query.fill === "signal-close" ? "signal-close" : DEFAULTS.fill;
+  const from =
+    typeof query.from === "string" && /^\d{4}-\d{2}-\d{2}$/.test(query.from) ? { from: query.from } : {};
   return fast < slow
-    ? { fast, slow, costBps, slippageBps, fill }
-    : { ...DEFAULTS, costBps, slippageBps, fill };
+    ? { fast, slow, costBps, slippageBps, fill, ...from }
+    : { ...DEFAULTS, costBps, slippageBps, fill, ...from };
 }
 
 /** The chosen parameters and their neighbours: fast ±2, slow ±5. */

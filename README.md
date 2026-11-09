@@ -1,5 +1,7 @@
 # Market cockpit
 
+The API key never reaches the browser: every request goes through a server proxy (`src/lib/proxy.ts`), and the CI step "Key stays in eodhd.ts" fails the build if any other file names it. Every panel shows its own age, because one response carries a different timestamp per row (`src/lib/age.ts`, `tests/age.test.ts`). When the day's calls run low, the tool gives way in a written order and keeps the last share for a refresh you press yourself (`src/lib/quota-policy.ts`, `tests/quota-policy.test.ts`, "walks the count from empty to the limit"). Alerts run only while the page is open: a server checking one rule every five minutes needs 78 calls a day, and the free plan allows 20.
+
 A personal market dashboard on the [EODHD APIs](https://eodhd.com/financial-apis/): a watchlist, a stock screen, a backtest and threshold checks on one page, for one person who wants to know how old every number is and what each refresh costs. Built on the course starter, for me in four months and anyone who finds it on my profile.
 
 ![The cockpit in mock mode: watchlist, screen, quote and backtest panels, each with its age](docs/screenshot.png)

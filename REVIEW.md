@@ -276,3 +276,30 @@ Comprehension (README only)
 - `npm run check:leak` did not say it is a full build. **Taste**, fixed in passing.
 - The visible TODO read as an unfinished README. **Real**, see Lies.
 
+
+## The eight checks of a shipped tool, 2026-11-09
+
+1. It answers from a machine that is not mine: **fail**. This copy is not deployed; there is no
+   URL to `curl` from a phone.
+2. The key is not in the repository, history included: **pass, by shape only**. The exact search
+   needs the owner's key and this copy has none; the shape search over every commit finds
+   three lines, all the made-up example in the key guard's documentation, and
+   `sh scripts/key-scan.sh` is clean.
+3. The key is not in what the browser downloads: **pass, locally**. `npm run check:leak` finds the
+   made-up key in none of the build's files, and `node scripts/check-network.mjs` against a
+   local production server found 4 pages and 11 scripts with no direct EODHD call. Against a
+   deployment: not run, see 1.
+4. The tests run, and one of them recomputes: **pass**. 270 tests in 47 files; the budget test
+   adds each panel's price to get 19 instead of pasting a total, and the quota policy's test
+   walks the count from 0 to 20 rather than asserting one printed line.
+5. A stranger got it running from the README alone: **half**. A fresh clone ran from the README
+   in about a minute in mock mode, with one line added after it; but it was run by the person
+   who wrote it, not a stranger.
+6. Rolled back once, deliberately, with the times: **fail**. `RUNBOOK.md` has the steps and an
+   empty Times line: nothing deployed, nothing to roll back.
+7. It stayed inside its quota for a day unattended: **fail**. Not deployed, so not run.
+8. It answered a real question this week: **fail**. It runs on fixtures here; its numbers are
+   invented, so it has answered nothing real.
+
+Three pass, one half, four fail. The four fails are one job: deploy it, with a password set,
+then roll back, leave it a day, and ask it something.

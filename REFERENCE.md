@@ -456,3 +456,29 @@ a choice to you, the section for that unit says which one we made. Yours can dif
   of the health check is `storeReadable()` in `src/lib/store.ts`: a query, and the file
   still where it was. Renaming the data folder under a running server cannot be tried on
   Windows, which keeps the open file locked; `tests/health.test.ts` covers the store down.
+
+## Ship Your Tool · unit 3: Operations
+
+- The health answer carries `commit` (`VERCEL_GIT_COMMIT_SHA`, seven characters, or `local`).
+  `RUNBOOK.md` has the Rollback section from Vercel's own pages, read on 2026-11-09, with the
+  page names; its Times line is empty because this copy has no deployment to time.
+- `.github/workflows/watch.yml` as in the lesson. A schedule runs on the default branch only,
+  so on this branch it never fires. The jq condition was checked on two sample answers.
+- `src/lib/quota-policy.ts` as in the lesson, plus `moreUrgent` and `stageSentence`. The page
+  marks requests in `getJson` in `src/lib/proxy-fetch.ts`, the one place it fetches through;
+  the market store carries the marker per batch (the most urgent of the callers in a tick).
+  A panel's first load and its timer are `auto`, Refresh and Retry `manual`, and a rule check
+  that has to fetch is `alert`. The proxy's own 402 has a `stage` in its body, and the
+  browser reads it as a new failure kind, `held`, not as EODHD's spent day; otherwise the
+  cockpit's wall from course 4 would also have blocked the refresh by hand.
+- With the fixture at 16 of 20, the cockpit's own wall (course 4) already disables Refresh:
+  13 calls do not fit in 4. What the proxy still serves is a refresh by hand that fits, here
+  a panel's Retry at 1 call.
+- Found while checking that: a retry that brought one symbol back cleared the failure of the
+  others, so the watchlist showed one row of seven as if ready. Failures are kept per symbol
+  now. Three React Compiler lint errors hidden in the cockpit since course 4 surfaced in the
+  same change and are fixed.
+- The final review was done by a separate session that did not build the tool, read-only. Its
+  report and the verdicts are in `REVIEW.md`. Fixed in their own commits before the write-up:
+  prices without a currency, admission that ignored a request's price, a proxy open to anyone
+  with a password set, and a freshness band that rounded 20 hours to a day.

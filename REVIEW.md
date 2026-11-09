@@ -156,3 +156,16 @@ Where the product felt wrong although the list passed: an empty screen has no ag
 in its title bar, only the sentence in the body; and the budget line is one long sentence
 that is easy to skip. Both written down, neither changed: the checklist did not ask for
 them, which is the point of reading the product and not only the list.
+
+## Dependency audit, 2026-11-09
+
+`npm audit`: 8 moderate findings. `npm audit --omit=dev`: none, so nothing that ships with the
+app is affected, and CI now fails on the day something is.
+
+- `minimatch` 7.0.0–11.0.0, denial of service through glob patterns, reached through
+  `eslint-config-next` → `typescript-eslint` → `@typescript-eslint/*` (seven of the eight
+  findings are that one chain). Dev only: it runs when ESLint reads its own config on this
+  machine and in CI, never on a request. Left open: `npm audit fix --force` would move
+  `eslint-config-next` to 15.5.29, a major version away from the Next.js 16 it lints. Look
+  again at the next Next.js upgrade, or 2027-02-01, whichever comes first.
+

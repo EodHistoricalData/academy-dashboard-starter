@@ -51,6 +51,12 @@ A personal market dashboard on the [EODHD APIs](https://eodhd.com/financial-apis
 
 **Documents live in one SQLite file.** Saved screens, the shortlist, notes, layouts and rules are documents in `.data/app.db` (gitignored), one row per user and key, each write checked against the version it read, so a second tab cannot silently overwrite the first.
 
+**It depends on 12 packages it names and 497 it installs.** Three ship with the app
+(`next`, `react`, `react-dom`) and nine are tools for building and checking it; the lockfile
+holds 497 packages in all, counted on 2026-11-09 with
+`node -p "Object.keys(require('./package-lock.json').packages).filter(Boolean).length"`.
+CI runs `npm audit --omit=dev` on every pull request: a finding in what ships fails the run.
+
 **It checks itself.**
 
 ```bash

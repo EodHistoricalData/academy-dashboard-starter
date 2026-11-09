@@ -45,6 +45,9 @@ jobs:
           node-version-file: .nvmrc
           cache: npm
       - run: npm ci
+      # What ships with the app; any finding fails the run. Dev-only findings are triaged in
+      # REVIEW.md rather than failing every pull request.
+      - run: npm audit --omit=dev
       - run: npm run lint
       - run: npm run typecheck
       - run: npm test

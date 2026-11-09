@@ -280,3 +280,12 @@ paused" with the count and the reset at 00:00 UTC, and every panel keeps its row
 age. Set to "by hand" everything except the quote panel, and the loop costs 2 calls a
 minute (the quote and the rule's symbol), which still empties the day in ten minutes. On this
 plan the honest interval is by hand.
+
+### What this cockpit is for
+
+One page for the morning check of a personal watchlist: the quotes with their real age, one
+saved screen of large profitable US companies, and a moving-average backtest of SPY, each
+panel saying how old its numbers are and what a refresh costs. It cannot watch anything
+while the page is closed, so the alert rules are a check made when it is open, not
+alerts; on the free plan it buys one full refresh a day, after which it shows the morning's
+numbers, labelled stale, until midnight UTC. It is not advice and does not trade.

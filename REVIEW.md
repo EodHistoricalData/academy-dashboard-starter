@@ -125,3 +125,34 @@ rule fired; the debounce counting a reload of the same tick twice is a real gap 
 model and is written down rather than fixed.
 
 Weakest lens, as the reader said: failure, on the server's first read.
+
+## Before the exam, 2026-11-09 (Build a Dashboard, unit 4)
+
+All five panel states forced by hand in mock mode, the answers held or replaced in the
+browser's network layer:
+
+- Loading (every answer held): each panel shows grey bars and "Loading…", nothing blank.
+- Refreshing (Refresh pressed, answers held): the rows stay, the title says "10 days old ·
+  refreshing…".
+- Ready: rows, and the age from the quotes' own timestamps; the header names the oldest.
+- Empty (the screen answered `[]`): "Nothing matches these filters." in the panel.
+- Failed (the quotes answered 500): "EODHD answered 500, a fault on its side", with Retry.
+  With a 402 instead: "You are out of API calls for today (402)", no Retry, the rows kept
+  and labelled stale, and the cockpit's own line "Refresh paused: … resets at 00:00 UTC".
+
+Against the lenses:
+
+- Leaks: unchanged since unit 3; the budget reads `/api/usage`, which returns only the
+  meter fields.
+- Cost: the price on screen comes from `refreshCost` over the same requests the fetchers
+  send, and a test pins it (13 on the default layout). Editing a layout no longer spends
+  anything; the loop is the only thing that refreshes old data, and it stops a refresh by
+  hand short of the limit.
+- Lies: each panel's age is from its own data; the quote fixture is ten days old and the
+  page says so, rather than looking current.
+- Failure: a 402 is never retried, a 429 waits for its Retry-After once.
+
+Where the product felt wrong although the list passed: an empty screen has no age or state
+in its title bar, only the sentence in the body; and the budget line is one long sentence
+that is easy to skip. Both written down, neither changed: the checklist did not ask for
+them, which is the point of reading the product and not only the list.

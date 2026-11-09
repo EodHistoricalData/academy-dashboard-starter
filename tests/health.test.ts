@@ -25,6 +25,14 @@ describe("GET /api/health", () => {
     expect(res.headers.get("cache-control")).toBe("no-store");
   });
 
+  it("names the commit the running build came from, seven characters, or local", async () => {
+    vi.stubEnv("EODHD_MOCK", "1");
+    vi.stubEnv("VERCEL_GIT_COMMIT_SHA", "");
+    expect((await (await GET()).json()).commit).toBe("local");
+    vi.stubEnv("VERCEL_GIT_COMMIT_SHA", "fa1eade47b73733d6312d5abfad33ce9e4068081");
+    expect((await (await GET()).json()).commit).toBe("fa1eade");
+  });
+
   it("is 503 with the store down and upstream still up", async () => {
     vi.stubEnv("EODHD_MOCK", "1");
     storeState.readable = false;

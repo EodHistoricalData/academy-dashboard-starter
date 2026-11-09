@@ -482,3 +482,17 @@ a choice to you, the section for that unit says which one we made. Yours can dif
   report and the verdicts are in `REVIEW.md`. Fixed in their own commits before the write-up:
   prices without a currency, admission that ignored a request's price, a proxy open to anyone
   with a password set, and a freshness band that rounded 20 hours to a day.
+
+## Ship Your Tool · unit 4: Continuity, and the Wall
+
+- The checks workflow runs on pull requests, every Monday at 06:17 UTC and by hand, with the
+  lesson's conditions and concurrency. `engines` is `>=22.13.0 <23`, not `22.x`: the same
+  major as `.nvmrc`, with the floor `node:sqlite` needs without a flag. The README says so.
+- The continuity table is in the README's limitations, worked out with `estimateCalls`: 4,043
+  calls a weekday if the dashboard stays open, almost all of it the minute round of a
+  watchlist that spans four markets' sessions (BTC-USD.CC never closes). The decision is to
+  run it by hand. Not measured live.
+- The three sentences and the limit at the top of the README are ours: the reference cannot
+  send the link to someone and note their first question.
+- The eight checks are in `REVIEW.md`: three pass, one half, four fail, all four because this
+  copy is not deployed.

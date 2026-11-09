@@ -368,3 +368,39 @@ a choice to you, the section for that unit says which one we made. Yours can dif
   cannot be read (pages answered 500; now `readDoc` and a notice,
   `tests/store-down.test.ts`), and rule tickers checked against the ticker shape. The rest
   are listed with where they will be handled.
+
+## Build a Dashboard · unit 4: Real-Time, and the Wall
+
+- `src/lib/age.ts`: `ageSeconds` and `medianGap` as in the lesson, plus `describeAge` for
+  the words. Each quote panel's age is from its own oldest row; the screen and the backtest
+  carry a date, so they say "end of day" and the date rather than an age they do not have.
+  The header names the oldest quote on screen and, separately, the end-of-day date. A clock
+  re-read every 15 seconds keeps the ages counting between fetches.
+- `scripts/sample-interval.mjs`: asks the dev server's proxy N times (`--every` seconds
+  apart, default 60), prints each timestamp and the median gap; against a real key it
+  prints the price and stops unless given `--yes`. It cannot import TypeScript on every
+  Node the project supports, so it carries its own median, and `tests/age.test.ts` holds it
+  to `medianGap`. Not run live: `PLAN.md` has the two intervals as blanks and says why.
+- `src/lib/budget.ts`: `refreshCost`, `exhaustsAt` and `shouldRefresh` as in the lesson.
+  The requests are built once: `fetchPlan` and `requestsOf` in `src/lib/proxy-fetch.ts` use
+  the same builders as the fetchers, so the price cannot drift from the fetch. The worked
+  cockpit is pinned at 18 (19 without the union), the default layout at 13.
+- Intervals: `refresh` sits on every panel beside `collapsed` rather than inside each
+  type's config, so no panel parser changed; a stored panel without one gets its type's
+  default (watchlist and quote every minute, screen every 15 minutes, backtest by hand),
+  and a backtest set to anything but by hand is refused, not repaired. "Live" is a minute,
+  the resolution of the feed's timestamps, until the measurement says otherwise.
+- The loop: a 15-second tick that does nothing while the tab is hidden, sends only the
+  symbols whose market is open (US, London, Seoul by their sessions; crypto always; an
+  exchange it does not know counts as open; holidays are not known), and runs once when
+  the tab comes back. The schedule's price prices each symbol in the fastest interval that
+  asks for it; the rules' symbols ride with the fastest.
+- The wall: the reserve is the price of one refresh by hand. The first load of the page is
+  not held back, because the meter lags and a 402 costs nothing: the API's answer is the
+  truth. A 429 waits for Retry-After (at most a minute) and asks once more; a 402 is never
+  retried and pauses everything until 00:00 UTC.
+- Fixed on the way, from the unit 3 review: the load effect asks only for what was never
+  asked for (editing a layout spent calls before, and a symbol the API leaves out would
+  have been asked for again on every render), Refresh and Retry are priced and stopped at
+  the wall, and Retry no longer re-sends the rules' symbols.
+- The exam pass is in `REVIEW.md`, the paragraph in `PLAN.md`.

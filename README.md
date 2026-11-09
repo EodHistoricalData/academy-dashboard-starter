@@ -6,11 +6,13 @@ A personal market dashboard on the [EODHD APIs](https://eodhd.com/financial-apis
 
 ## Run it
 
+Needs Node 22.13 or later (`node -v`); older versions stop at the first page. More under What you need first.
+
 1. `git clone https://github.com/EodHistoricalData/academy-dashboard-starter && cd academy-dashboard-starter`
 2. `npm ci`
-3. `cp .env.example .env.local`   (then set `EODHD_API_KEY`, or `EODHD_MOCK=1` to run on fixtures)
+3. `cp .env.example .env.local`, then in `.env.local` set `EODHD_API_KEY` to your key, or `EODHD_MOCK=1` to run on fixtures
 4. `npm run dev`
-5. Open http://localhost:3000/dashboard
+5. Open http://localhost:3000/dashboard: four panels, each with its age in its title bar, and in mock mode a "Mock mode" box at the top. With neither a key nor mock mode, step 4 stops with one sentence saying which variable to set.
 
 ## What you need first
 
@@ -18,7 +20,8 @@ A personal market dashboard on the [EODHD APIs](https://eodhd.com/financial-apis
 - **A free EODHD API key**, from [eodhd.com/register](https://eodhd.com/register). It goes in `.env.local` as `EODHD_API_KEY`, never in a variable starting `NEXT_PUBLIC_`. The free plan is 20 API calls a day.
 - **npm 11 or later may warn** that `unrs-resolver` has an install script not covered by `allowScripts`. Nothing needs it: lint and the app run without it.
 - **Or no key at all: mock mode.** With `EODHD_MOCK=1` every request is answered from the JSON files in `fixtures/`, nothing goes over the network and nothing is spent. Every page says so at the top, because invented numbers that look live are worse than none. `fixtures/README.md` says how to add one.
-- **To keep layouts, notes and rules on the server:** `DASHBOARD_PASSWORD` (what you sign in with at `/login`) and `SESSION_SECRET` (a long random string: `node -e "console.log(require('crypto').randomBytes(32).toString('base64url'))"`). In mock mode with no password, user 1 is assumed and the pages say so. `.env.example` lists every variable and its default.
+- **To keep layouts, notes and rules on the server:** `DASHBOARD_PASSWORD` (what you sign in with at `/login`) and `SESSION_SECRET` (a long random string: `node -e "console.log(require('crypto').randomBytes(32).toString('base64url'))"`). In mock mode with no password, user 1 is assumed and the pages say so; outside mock mode, without them nothing is saved on the server and changes last until you leave the page. With a password set, the proxy serves live data to the signed-in owner only. `.env.example` lists every variable and its default.
+- **To put it on a URL:** `RUNBOOK.md` says how it deploys, how to roll back and how to tell which commit is live. Set the same variables in the host's settings, never prefixed `NEXT_PUBLIC_`, and set `DASHBOARD_PASSWORD`: without it anyone with the URL spends your calls.
 
 ## What it does
 
@@ -30,12 +33,18 @@ A personal market dashboard on the [EODHD APIs](https://eodhd.com/financial-apis
 
 ## What it does not do
 
-- **It is not real-time.** A quote is as old as its last trade; TODO: the measured gap between changes for one liquid and one thin symbol (`PLAN.md`, Update intervals).
-- **It does not refresh much on the free plan.** The default layout costs 13 calls a refresh; 20 a day buys one. After that it keeps the morning's numbers on screen, labelled stale, until 00:00 UTC.
-- **It does not send alerts.** Rules are checked only while the dashboard is open; a server checking one rule every 5 minutes would need 78 calls a day.
-- **It does not screen outside the US.** One exchange, 18,012 common stocks of 51,215 US instruments, 20 rows a screen, 5 calls a screen.
-- **It does not test across regimes.** The free plan reaches one year of daily bars (251 in the fixture); no 2008, 2020 or 2022.
+Every limit in one place, with the numbers measured in `PLAN.md`. The four walls first: each is
+what the free plan's 20 calls a day cannot buy.
+
+- **Freshness: it cannot keep a page current.** One load of the watchlist costs 7 calls (one per ticker), so a free day buys 2; a page refreshing once a minute through a 6.5-hour session would need 2,730. A quote is as old as its last trade and the page says how old. How often the numbers actually change is not measured on this copy: it runs on fixtures, and measuring costs 20 calls (`scripts/sample-interval.mjs`, `PLAN.md`, Update intervals).
+- **Breadth: it cannot screen a market freely.** A screen is 5 calls, so four attempts spend a day; a real session of 20 attempts fits once a week. One exchange: 18,012 common stocks of 51,215 US instruments, 20 rows a screen, nothing outside the US.
+- **History: it cannot test across regimes.** The free plan reaches one year of daily bars (251 bars, 2025-10-31 to 2026-10-30 in the fixture): one rally and one drawdown of about 9%; no 2008, 2020 or 2022.
+- **Real-time: it cannot refresh, and cannot alert.** The default layout costs 13 calls a refresh (7 watchlist tickers, a screen at 5, one daily history), so a free day buys one; after it the cockpit keeps the morning's numbers, labelled stale, until 00:00 UTC. Alert rules are checked only while the dashboard is open: a server checking one rule every 5 minutes would need 78 calls a day.
+
+And the rest:
+
 - **It does not know market holidays.** On one, the refresh loop asks anyway and the ages show nothing moved.
+- **Its pages spend for every visitor.** The watchlist, screen and backtest pages fetch on the server, outside the proxy's limits: on a public URL each visit to the watchlist costs 7 calls. Keep the URL private, or put the pages behind the sign-in as well.
 - **It has one owner.** One password, one user in the store; it is not built for several people.
 - **It does not advise or trade.** Nothing it shows is investment advice.
 
@@ -63,7 +72,7 @@ CI runs `npm audit --omit=dev` on every pull request: a finding in what ships fa
 npm test             # no key, no network
 npm run typecheck
 npm run lint
-npm run check:leak   # builds with a made-up key and fails if its value lands in the output
+npm run check:leak   # a full production build (about a minute) with a made-up key; fails if the key lands in the output
 ```
 
 `npm install` turns on the git hooks in `.githooks/`: pre-commit refuses anything shaped like a key and lints the staged files; pre-push runs the tests, the type check and the leak check. CI (`.github/workflows/key-scan.yml`) runs the same on every pull request, plus a scan of the whole history. If a key ever reaches a public repository, rotate it: removing the commit is not enough.

@@ -210,3 +210,69 @@ ceiling, the URL stays private.
 
 Hammering the proxy from one address in mock mode: the first 30 requests a minute are
 answered, every one after that is 429.
+
+## Final review, 2026-11-09
+
+Five lenses over the whole repository, by a reviewer that did not build it: a separate
+session, reading the code with nothing changed and no API call made. Every finding carries
+my verdict, real, taste or wrong, and one sentence of reason.
+
+```
+Leaks          fail, then pass   the password guarded only the store; the proxy now serves the owner only
+Cost           fail, then pass   admission ignored a request's price; it is priced now
+Lies           fail, then pass   prices had no currency, a band rounded 20 h to a day; both fixed
+Failure        pass              with one real finding written down: a damaged document has no repair
+Comprehension  fail, then pass   the README's first screen missed four things a stranger needs
+```
+
+Leaks
+- The password protected the document store and nothing else: the proxy served anyone. **Real**,
+  fixed in its own commit: with `DASHBOARD_PASSWORD` set the proxy answers 401 without a session.
+- The per-address limit trusts the first `x-forwarded-for` address, which a client can write.
+  **Real**, written down: it was always a hint (`src/lib/proxy.ts`); the sign-in is what holds.
+- A mock-mode deployment with no password makes every visitor user 1. **Real**, by design for
+  the course; the page says so, and a deployment runs with a key and a password.
+
+Cost
+- `x-budget: manual` from any caller walks past every stage. **Real**: the marker is the client's
+  word. Closed for strangers by the sign-in fix; the owner can still mark anything manual.
+- `admit` compared the count before a request, never after it: a 13-call refresh at 14 of 20
+  landed at 27, and one `real-time` request with 500 tickers passed every stage. **Real**, fixed
+  in its own commit: admission is priced with `estimateCalls`.
+- Parameters other than the screener's are forwarded unchecked. **Real**, already a fail in the
+  security pass; its cost is now bounded by priced admission.
+- The watch workflow runs 96 times a day; on a private repository that is about 2,900 Actions
+  minutes a month. **Real** for private repositories, **wrong** for a public one, where
+  GitHub-hosted runners are free. Decide before enabling it on a private repository.
+- The watch goes red at 80% of the day used, which one refresh by hand plus a load reaches on
+  the free plan. **Taste**: on 20 calls a day, 80% used is worth a message.
+- The home page's meter is read in parallel with the quotes, so it can miss this load's calls.
+  **Taste**: the user endpoint lags anyway, and the page says what the load costs beside it.
+
+Lies
+- Prices had no currency: SPY.US in dollars, VOD.LSE in pence and 005930.KO in won in one column.
+  **Real**, fixed in its own commit.
+- The home page's freshness band said "more than a day behind" from 20 hours, beside "21 h old".
+  **Real**: the panel's own rule is never to round the timestamp into a claim. Fixed in its own
+  commit: "twenty hours or more behind".
+- In mock mode the meter shows the fixture's "0 of 20". **Wrong**: every page says mock mode at
+  the top, and the dashboard's line says "fixtures, not your account".
+- The README had a TODO and a "13 calls" without what it depends on. **Real**, fixed below: the
+  limitations say what is not measured and why, and what the 13 is made of.
+
+Failure
+- A damaged document (a stored payload that is not JSON) cannot be read or overwritten from the
+  app: every save answers 503. **Real**, written down: the repair is to delete that row, and it
+  belongs in `RUNBOOK.md` before the tool is relied on.
+- The proxy's own 402 and EODHD's share a status. **Taste**: the body says which (`stage`), and
+  the page reads it.
+- A missing key, a panel crash, upstream 5xx and 429, and an unreadable store on first read:
+  handled, each with its sentence.
+
+Comprehension (README only)
+- Node 22.13 was stated after the commands; step 3 did not name the file to edit; nothing said
+  what a working start looks like; nothing said that without a password outside mock mode
+  nothing is saved, or how to deploy. **Real**, all fixed in the README.
+- `npm run check:leak` did not say it is a full build. **Taste**, fixed in passing.
+- The visible TODO read as an unfinished README. **Real**, see Lies.
+

@@ -1,5 +1,6 @@
 import { isTicker } from "@/lib/added";
 import { DEFAULTS as BACKTEST_DEFAULTS, type Params } from "@/lib/backtest/strategy";
+import { REFRESH, type Refresh } from "@/lib/budget";
 import { DEFAULT_SORT, type Filter, safe, safeSort, type Sort } from "@/lib/filters";
 import { MY_FILTERS } from "@/lib/screen-query";
 import { WATCHLIST } from "@/lib/watchlist";
@@ -27,8 +28,17 @@ export type ScreenConfig = { filters: Filter[]; sort: Sort; follows: boolean };
 export type BacktestConfig = Params & { symbol: string; follows: boolean };
 export type QuoteConfig = { symbol: string; follows: boolean };
 
-/** `collapsed`: only the title shows, and the panel asks for nothing. Saved with the layout. */
-type Base = { id: string; title: string; position: Position; collapsed: boolean };
+/**
+ * `collapsed`: only the title shows, and the panel asks for nothing. `refresh`: how often
+ * it asks by itself (src/lib/budget.ts). Both saved with the layout.
+ */
+type Base = {
+  id: string;
+  title: string;
+  position: Position;
+  collapsed: boolean;
+  refresh: Refresh;
+};
 export type Panel =
   | (Base & { type: "watchlist"; config: WatchlistConfig })
   | (Base & { type: "screen"; config: ScreenConfig })
@@ -53,6 +63,7 @@ export const DEFAULT_LAYOUT: Layout = {
       config: { symbols: WATCHLIST, follows: false }, // kept still on purpose
       position: { x: 0, y: 0, w: 2, h: 2 },
       collapsed: false,
+      refresh: "live",
     },
     {
       id: "screen",
@@ -61,6 +72,7 @@ export const DEFAULT_LAYOUT: Layout = {
       config: { filters: MY_FILTERS, sort: DEFAULT_SORT, follows: false },
       position: { x: 2, y: 0, w: 2, h: 2 },
       collapsed: false,
+      refresh: "minutes",
     },
     {
       id: "quote",
@@ -69,6 +81,7 @@ export const DEFAULT_LAYOUT: Layout = {
       config: { symbol: WATCHLIST[0], follows: true }, // shows what you select
       position: { x: 0, y: 2, w: 1, h: 1 },
       collapsed: false,
+      refresh: "live",
     },
     {
       id: "backtest",
@@ -77,6 +90,7 @@ export const DEFAULT_LAYOUT: Layout = {
       config: { symbol: "SPY.US", ...BACKTEST_DEFAULTS, follows: false },
       position: { x: 1, y: 2, w: 3, h: 1 },
       collapsed: false,
+      refresh: "manual",
     },
   ],
 };
@@ -135,6 +149,24 @@ export function parseQuoteConfig(raw: unknown): QuoteConfig | null {
   return isTicker(c?.symbol) && typeof c.follows === "boolean"
     ? { symbol: c.symbol, follows: c.follows }
     : null;
+}
+
+/**
+ * How often each type asks by itself when a stored panel does not say (it was saved before
+ * panels had an interval). A backtest is manual and cannot be set otherwise: it is a
+ * computation over history, and history did not change.
+ */
+const DEFAULT_REFRESH: Record<PanelType, Refresh> = {
+  watchlist: "live",
+  screen: "minutes",
+  quote: "live",
+  backtest: "manual",
+};
+
+function refreshOf(type: PanelType, raw: unknown): Refresh | null {
+  if (raw === undefined) return DEFAULT_REFRESH[type];
+  if (!REFRESH.includes(raw as Refresh)) return null;
+  return type === "backtest" && raw !== "manual" ? null : (raw as Refresh);
 }
 
 const CHECK: Record<PanelType, (config: unknown) => object | null> = {
@@ -198,15 +230,17 @@ export function parseLayout(raw: unknown): Layout {
         title: typeof p.title === "string" ? p.title : "Untitled",
         position: positionOf(p.position),
         collapsed: p.collapsed === true,
+        refresh: "manual", // a placeholder asks for nothing
       };
       const type = p.type;
       if (typeof type !== "string" || !Object.hasOwn(CHECK, type)) {
         return placeholder(base, `This cockpit does not know the panel type “${String(type)}”.`);
       }
       const config = CHECK[type as PanelType](p.config);
-      return config === null
+      const refresh = refreshOf(type as PanelType, p.refresh);
+      return config === null || refresh === null
         ? placeholder(base, `This ${type} panel’s settings did not pass their check, so it was not drawn.`)
-        : ({ ...base, type, config } as Panel);
+        : ({ ...base, refresh, type, config } as Panel);
     }),
   };
 }

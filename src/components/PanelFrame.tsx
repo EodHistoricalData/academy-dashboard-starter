@@ -1,5 +1,6 @@
 import type { ReactNode } from "react";
 import { PanelTitle } from "@/components/PanelTitle";
+import { REFRESH, REFRESH_LABEL, type Refresh } from "@/lib/budget";
 import type { Panel } from "@/lib/layout";
 
 /**
@@ -12,11 +13,14 @@ export function PanelFrame({
   aside,
   onRename,
   onCollapse,
+  onRefresh,
 }: {
   panel: Panel;
   children?: ReactNode;
   onRename?: (title: string) => void;
   onCollapse?: () => void;
+  /** Absent for a panel whose interval cannot change, which then says so. */
+  onRefresh?: (refresh: Refresh) => void;
   /** Small text at the right of the title bar: the panel's age, its state. */
   aside?: ReactNode;
 }) {
@@ -34,6 +38,23 @@ export function PanelFrame({
         <PanelTitle title={panel.title} onRename={onRename} />
         <span className="flex shrink-0 items-baseline gap-3 text-xs text-zinc-500 dark:text-zinc-400">
           {!panel.collapsed && (aside ?? panel.type)}
+          {panel.type !== "placeholder" &&
+            (onRefresh ? (
+              <select
+                aria-label={`How often ${panel.title} refreshes`}
+                value={panel.refresh}
+                onChange={(e) => onRefresh(e.target.value as Refresh)}
+                className="rounded border border-zinc-200 bg-transparent px-1 py-0.5 dark:border-zinc-700"
+              >
+                {REFRESH.map((r) => (
+                  <option key={r} value={r}>
+                    {REFRESH_LABEL[r]}
+                  </option>
+                ))}
+              </select>
+            ) : (
+              <span>{REFRESH_LABEL[panel.refresh]}</span>
+            ))}
           {onCollapse && (
             <button
               type="button"

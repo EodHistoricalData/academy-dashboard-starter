@@ -1,7 +1,9 @@
 import { type Bar, toBars } from "@/lib/backtest/bars";
+import type { Request } from "@/lib/budget";
 import { type Failure, failureFromStatus } from "@/lib/failure";
 import { toTriples } from "@/lib/filters";
 import type { ScreenConfig } from "@/lib/layout";
+import { type Needs, unionNeeds } from "@/lib/panels";
 import { quotesRequest } from "@/lib/quote-request";
 import { type Row, toRows } from "@/lib/rows";
 import { PAGE_LIMIT, screenRequest, type ScreenRow, toScreenRows } from "@/lib/screen-query";
@@ -56,12 +58,54 @@ export function screenKey(config: ScreenConfig): string {
   return JSON.stringify([config.filters, config.sort]);
 }
 
-export async function screenViaProxy(key: string): Promise<ScreenRow[]> {
+/** The request a screen key stands for. */
+export function screenRequestOf(key: string): Request {
   const [filters, sort] = JSON.parse(key) as [ScreenConfig["filters"], ScreenConfig["sort"]];
-  const req = screenRequest({ filters: toTriples(filters), sort, limit: PAGE_LIMIT });
+  return screenRequest({ filters: toTriples(filters), sort, limit: PAGE_LIMIT });
+}
+
+export async function screenViaProxy(key: string): Promise<ScreenRow[]> {
+  const req = screenRequestOf(key);
   return toScreenRows(await getJson(req.path, req.params));
 }
 
+export const eodRequest = (symbol: string): Request => ({ path: `eod/${symbol}`, params: {} });
+
 export async function eodViaProxy(symbol: string): Promise<Bar[]> {
-  return toBars(await getJson(`eod/${symbol}`));
+  const req = eodRequest(symbol);
+  return toBars(await getJson(req.path, req.params));
+}
+
+/**
+ * What one fetch for these needs asks for: the union of the symbols (with the rules'
+ * symbols, which ride along so the rules are checked on every answer), and each screen and
+ * daily history once. The container fetches from this, and the budget prices it.
+ */
+export type FetchPlan = { symbols: string[]; screens: string[]; histories: string[] };
+
+export function fetchPlan(needs: Needs[], ruleSymbols: string[] = []): FetchPlan {
+  return {
+    symbols: unionNeeds([...needs, { quotes: ruleSymbols }]),
+    screens: [...new Set(needs.flatMap((n) => (n.screen ? [screenKey(n.screen)] : [])))],
+    histories: [...new Set(needs.flatMap((n) => (n.eod ? [n.eod] : [])))],
+  };
+}
+
+/** The plan without what `other` already asks for. */
+export function without(plan: FetchPlan, other: FetchPlan): FetchPlan {
+  return {
+    symbols: plan.symbols.filter((s) => !other.symbols.includes(s)),
+    screens: plan.screens.filter((s) => !other.screens.includes(s)),
+    histories: plan.histories.filter((s) => !other.histories.includes(s)),
+  };
+}
+
+/** The requests the fetchers above send for a plan: the same builders, so the same price. */
+export function requestsOf(plan: FetchPlan): Request[] {
+  const quotes = quotesRequest(plan.symbols);
+  return [
+    ...(quotes ? [quotes] : []),
+    ...plan.screens.map(screenRequestOf),
+    ...plan.histories.map(eodRequest),
+  ];
 }

@@ -92,3 +92,34 @@ describe("parseLayout", () => {
     ]);
   });
 });
+
+describe("a panel's refresh interval", () => {
+  const at = { x: 0, y: 0, w: 1, h: 1 };
+  const backtest = { symbol: "SPY.US", fast: 20, slow: 50, costBps: 5, slippageBps: 5, fill: "next-open", follows: false };
+
+  it("defaults by type for a panel saved before intervals existed", () => {
+    expect(DEFAULT_LAYOUT.panels.map((p) => p.refresh)).toEqual(["live", "minutes", "live", "manual"]);
+    const old = parseLayout({
+      ...DEFAULT_LAYOUT,
+      panels: DEFAULT_LAYOUT.panels.map((p) => ({ ...p, refresh: undefined })),
+    });
+    expect(old.panels.map((p) => p.refresh)).toEqual(["live", "minutes", "live", "manual"]);
+  });
+
+  it("keeps a backtest manual: any other interval is refused, not repaired", () => {
+    const layout = parseLayout({
+      name: "x",
+      version: CURRENT_VERSION,
+      panels: [
+        { id: "b", type: "backtest", title: "B", config: backtest, position: at, refresh: "live" },
+        { id: "q", type: "quote", title: "Q", config: { symbol: "AAPL.US", follows: true }, position: at, refresh: "daily" },
+        { id: "w", type: "quote", title: "W", config: { symbol: "AAPL.US", follows: true }, position: at, refresh: "every second" },
+      ],
+    });
+    expect(layout.panels.map((p) => [p.type, p.refresh])).toEqual([
+      ["placeholder", "manual"],
+      ["quote", "daily"],
+      ["placeholder", "manual"],
+    ]);
+  });
+});

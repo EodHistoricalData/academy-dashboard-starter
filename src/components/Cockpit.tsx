@@ -12,6 +12,15 @@ import { WatchlistPanel } from "@/components/panels/WatchlistPanel";
 import { toTicker } from "@/lib/added";
 import { ageSeconds, describeAge } from "@/lib/age";
 import type { Bar } from "@/lib/backtest/bars";
+import {
+  callsPerMinute,
+  exhaustsAt,
+  marketOpen,
+  REFRESH,
+  REFRESH_EVERY_MS,
+  type Refresh,
+  refreshCost,
+} from "@/lib/budget";
 import { putDocViaRoute } from "@/lib/doc-client";
 import { type Failure, failureSentence } from "@/lib/failure";
 import type { Layout, Panel } from "@/lib/layout";
@@ -37,9 +46,13 @@ import { type Rule, ruleSentence } from "@/lib/rules";
 import {
   eodViaProxy,
   failureOf,
+  type FetchPlan,
+  fetchPlan,
   quotesViaProxy,
+  requestsOf,
   screenKey,
   screenViaProxy,
+  without,
 } from "@/lib/proxy-fetch";
 import type { ScreenRow } from "@/lib/screen-query";
 import {
@@ -104,6 +117,17 @@ type Loaded = {
 
 const EMPTY: Loaded = { quotes: new Map(), screens: new Map(), bars: new Map() };
 
+/** Today's count and limit from /api/usage, which costs nothing. */
+type Usage = { used: number | null; limit: number | null; mock: boolean };
+
+/** What the loop sends for a panel that is due: only the parts whose market is open. */
+function openPart(needs: Needs, now: number): Needs | null {
+  const quotes = needs.quotes.filter((s) => marketOpen(s, now));
+  const screen = needs.screen && marketOpen("SCREEN.US", now) ? needs.screen : undefined; // the screen is of US stocks
+  const eod = needs.eod && marketOpen(needs.eod, now) ? needs.eod : undefined;
+  return quotes.length > 0 || screen || eod ? { quotes, screen, eod } : null;
+}
+
 /**
  * The cockpit: it owns fetching for every panel. It collects what each panel needs, unions
  * the symbols so two panels wanting the same one ask once, asks the market store (which
@@ -159,6 +183,7 @@ export function Cockpit({
   const [failures, setFailures] = useState<ReadonlyMap<string, Failure>>(new Map());
   const [selection, setSelection] = useState<Selection>(NO_SELECTION);
   const now = useSyncExternalStore(subscribeClock, readClock, readClock);
+  const [usage, setUsage] = useState<Usage | null>(null);
 
   // The one way the selection changes. Selecting what is already selected returns the
   // same object, so nothing re-renders: remove that guard in nextSelection and the two
@@ -244,12 +269,17 @@ export function Cockpit({
     });
   }, [stores, signedIn]);
 
+  /**
+   * `withRules`: the rules' symbols ride along, so the rules are checked on the answer. The
+   * loop and a refresh by hand send them; a retry of one panel does not.
+   */
   const fetchFor = useCallback(
-    async (needs: Needs[], force: boolean) => {
-      const ruleSymbols = rulesNow.current.filter((r) => r.enabled).map((r) => r.ticker);
-      const symbols = unionNeeds([...needs, { quotes: ruleSymbols }]);
-      const screens = [...new Set(needs.flatMap((n) => (n.screen ? [screenKey(n.screen)] : [])))];
-      const histories = [...new Set(needs.flatMap((n) => (n.eod ? [n.eod] : [])))];
+    async (needs: Needs[], force: boolean, withRules: boolean) => {
+      const ruleSymbols = withRules
+        ? rulesNow.current.filter((r) => r.enabled).map((r) => r.ticker)
+        : [];
+      // The same plan the budget prices: see requestsOf in src/lib/proxy-fetch.ts.
+      const { symbols, screens, histories } = fetchPlan(needs, ruleSymbols);
 
       const settle = async <T,>(key: string, job: () => Promise<T>, apply: (value: T) => void) => {
         setFetching((prev) => new Set(prev).add(key));
@@ -296,11 +326,120 @@ export function Cockpit({
     [stores, runChecks],
   );
 
+  // What the page shows and has never asked for: the first load, a symbol just selected, a
+  // panel just expanded. Only that: data that is merely old is the loop's to refresh, so
+  // renaming a panel or changing an interval spends nothing. Asked once, not until it
+  // arrives: a symbol the answer leaves out, or a request that failed, is not asked again
+  // by itself (Refresh and Retry are there for that).
+  const asked = useRef(new Set<string>());
   useEffect(() => {
-    // Started after this render, so the effect itself sets no state.
-    const started = Promise.resolve().then(() => fetchFor(openNeeds, false));
-    void started;
-  }, [openNeeds, fetchFor]);
+    const ask = (key: string) => {
+      if (asked.current.has(key)) return false;
+      asked.current.add(key);
+      return true;
+    };
+    const missing = openNeeds.flatMap((n) => {
+      const part: Needs = {
+        quotes: n.quotes.filter((s) => !loaded.quotes.has(s) && ask(`quote:${s}`)),
+        screen:
+          n.screen && !loaded.screens.has(screenKey(n.screen)) && ask(`screen:${screenKey(n.screen)}`)
+            ? n.screen
+            : undefined,
+        eod: n.eod && !loaded.bars.has(n.eod) && ask(`eod:${n.eod}`) ? n.eod : undefined,
+      };
+      return part.quotes.length > 0 || part.screen || part.eod ? [part] : [];
+    });
+    let rulesMissing = false;
+    for (const r of rulesNow.current) {
+      if (r.enabled && !loaded.quotes.has(r.ticker) && ask(`quote:${r.ticker}`)) rulesMissing = true;
+    }
+    if (missing.length === 0 && !rulesMissing) return;
+    // Started after this render, so the effect itself sets no state. A request already in
+    // flight for the same symbols is shared by the store, not sent twice.
+    void Promise.resolve().then(() => fetchFor(missing, false, rulesMissing));
+  }, [openNeeds, loaded, fetchFor]);
+
+  // Calls used today and the limit, read again after every round: the meter is the truth,
+  // and other tabs spend from the same allowance.
+  const readUsage = useCallback(async () => {
+    try {
+      const res = await fetch("/api/usage");
+      if (!res.ok) return;
+      const u = (await res.json()) as { used: number | null; dailyLimit: number | null; mock: boolean };
+      setUsage({ used: u.used, limit: u.dailyLimit, mock: u.mock });
+    } catch {
+      // No meter is not a reason to stop drawing; the budget line says it does not know.
+    }
+  }, []);
+
+  // The price of a refresh by hand: every open panel, forced, with the rules' symbols.
+  const ruleSymbols = useMemo(() => rules.filter((r) => r.enabled).map((r) => r.ticker), [rules]);
+  const handPrice = refreshCost(requestsOf(fetchPlan(openNeeds, ruleSymbols)));
+
+  // The loop's schedule: one round per interval, each symbol priced in the fastest round
+  // that asks for it. The rules' symbols ride with the fastest.
+  const rounds = useMemo(() => {
+    let covered: FetchPlan = { symbols: [], screens: [], histories: [] };
+    return REFRESH.flatMap((refresh) => {
+      const everyMs = REFRESH_EVERY_MS[refresh];
+      if (everyMs === null) return [];
+      const needs = neededBy(
+        layout.panels.filter((p) => p.refresh === refresh),
+        (p) => needsByPanel[layout.panels.indexOf(p)],
+      );
+      if (needs.length === 0) return [];
+      const first = covered.symbols.length + covered.screens.length + covered.histories.length === 0;
+      const plan = without(fetchPlan(needs, first ? ruleSymbols : []), covered);
+      covered = {
+        symbols: [...covered.symbols, ...plan.symbols],
+        screens: [...covered.screens, ...plan.screens],
+        histories: [...covered.histories, ...plan.histories],
+      };
+      const cost = refreshCost(requestsOf(plan));
+      return cost === null ? [] : [{ refresh, cost, everyMs }];
+    });
+  }, [layout, needsByPanel, ruleSymbols]);
+
+  /**
+   * One pass of the loop. Nothing while the tab is hidden; otherwise every panel whose
+   * interval has passed since its data arrived, minus the symbols whose market is closed.
+   */
+  const tick = (at: number) => {
+    if (document.visibilityState === "hidden") return;
+    const due = layout.panels.flatMap((panel, i) => {
+      const needs = needsByPanel[i];
+      const every = REFRESH_EVERY_MS[panel.refresh];
+      if (!needs || panel.collapsed || every === null) return [];
+      const last = lastFetched(needs);
+      if (last === null || at - last < every) return [];
+      const open = openPart(needs, at);
+      return open ? [open] : [];
+    });
+    if (due.length === 0) return;
+    void fetchFor(due, false, true).then(readUsage);
+  };
+  const tickNow = useRef(tick);
+  useEffect(() => {
+    tickNow.current = tick;
+  });
+  useEffect(() => {
+    const run = () => tickNow.current(Date.now());
+    void Promise.resolve().then(readUsage);
+    const every = setInterval(run, 15_000);
+    // Coming back to the tab is when a person wants current data: one round, at once.
+    const onShow = () => {
+      if (document.visibilityState !== "visible") return;
+      run();
+      void readUsage();
+    };
+    document.addEventListener("visibilitychange", onShow);
+    window.addEventListener("focus", onShow);
+    return () => {
+      clearInterval(every);
+      document.removeEventListener("visibilitychange", onShow);
+      window.removeEventListener("focus", onShow);
+    };
+  }, [readUsage]);
 
   // Autosave: every change to a layout writes the whole document with the version read.
   // Writes go out one at a time; another tab's newer version is shown, not overwritten.
@@ -348,6 +487,16 @@ export function Cockpit({
     });
   }
 
+  function setRefresh(panelId: string, refresh: Refresh) {
+    saveLayouts({
+      ...layouts,
+      [layout.name]: {
+        ...layout,
+        panels: layout.panels.map((p) => (p.id === panelId ? { ...p, refresh } : p)),
+      },
+    });
+  }
+
   function setCollapsed(panelId: string, collapsed: boolean) {
     saveLayouts({
       ...layouts,
@@ -389,6 +538,17 @@ export function Cockpit({
     };
   }
 
+  /** When the oldest part of a panel's data arrived, or null before it has any. */
+  function lastFetched(needs: Needs): number | null {
+    const times = [
+      ...needs.quotes.flatMap((s) => loaded.quotes.get(s)?.fetchedAt ?? []),
+      ...(needs.screen ? [loaded.screens.get(screenKey(needs.screen))?.fetchedAt ?? null] : []),
+      ...(needs.eod ? [loaded.bars.get(needs.eod)?.fetchedAt ?? null] : []),
+    ];
+    if (times.length === 0 || times.includes(null)) return null;
+    return Math.min(...(times as number[]));
+  }
+
   /** What the panel has, for its state: null until the first answer for it arrives. */
   function rowsOf(needs: Needs, data: PanelData): unknown[] | null {
     if (needs.screen) return data.screen?.rows ?? null;
@@ -407,6 +567,7 @@ export function Cockpit({
   return (
     <div className="flex flex-col gap-4">
       <OldestLine ages={ages} />
+      <BudgetLine usage={usage} handPrice={handPrice} perMinute={callsPerMinute(rounds)} now={now} />
       <div className="flex flex-wrap items-start gap-4">
         <div className="min-w-0 flex-1">
           <LayoutSwitcher
@@ -421,7 +582,7 @@ export function Cockpit({
         </div>
         <button
           type="button"
-          onClick={() => void fetchFor(openNeeds, true)}
+          onClick={() => void fetchFor(openNeeds, true, true).then(readUsage)}
           className="rounded border border-zinc-300 px-2.5 py-1 text-sm dark:border-zinc-700"
         >
           Refresh
@@ -434,6 +595,9 @@ export function Cockpit({
           const needs = needsByPanel[i];
           const onRename = (title: string) => rename(panel.id, title);
           const onCollapse = () => setCollapsed(panel.id, !panel.collapsed);
+          // A backtest is manual and cannot be set otherwise, so it gets no choice.
+          const onRefresh =
+            panel.type === "backtest" ? undefined : (r: Refresh) => setRefresh(panel.id, r);
           if (!def || !needs || panel.collapsed) {
             return (
               <PanelFrame
@@ -441,6 +605,7 @@ export function Cockpit({
                 panel={panel}
                 onRename={onRename}
                 onCollapse={onCollapse}
+                onRefresh={onRefresh}
               />
             );
           }
@@ -466,6 +631,7 @@ export function Cockpit({
               panel={panel}
               onRename={onRename}
               onCollapse={onCollapse}
+              onRefresh={onRefresh}
               aside={asideFor(state.kind, ageOf(needs, data, now))}
             >
               <PanelBoundary>
@@ -475,7 +641,7 @@ export function Cockpit({
                   <div className="flex flex-col gap-3">
                     <Failed
                       failure={state.failure}
-                      onRetry={() => void fetchFor([needs], true)}
+                      onRetry={() => void fetchFor([needs], true, false)}
                     />
                     {state.rows !== null && body}
                   </div>
@@ -600,6 +766,44 @@ function OldestLine({ ages }: { ages: { panel: Panel; age: Age }[] }) {
         `Oldest quote on screen: ${oldest.age.symbol}, ${describeAge(oldest.age.seconds)} (${oldest.panel.title}).`}
       {oldest && firstDay && " "}
       {firstDay && `End-of-day panels: data to ${firstDay}.`}
+    </p>
+  );
+}
+
+/**
+ * The budget, on screen: calls used today, the limit, what a refresh by hand costs, and when
+ * the limit is reached at this schedule. The projection is what turns the count into a
+ * decision; it moves when a panel's interval changes.
+ */
+function BudgetLine({
+  usage,
+  handPrice,
+  perMinute,
+  now,
+}: {
+  usage: Usage | null;
+  handPrice: number | null;
+  perMinute: number;
+  now: number;
+}) {
+  const price = handPrice === null ? "an unknown number of" : String(handPrice);
+  const meter =
+    usage?.used != null && usage.limit != null
+      ? `${usage.used} of ${usage.limit} calls used today`
+      : "Calls used today: unknown";
+  let projection: string;
+  if (perMinute === 0) {
+    projection = "nothing refreshes by itself at this schedule";
+  } else if (usage?.used == null || usage.limit == null) {
+    projection = `this schedule spends ${Math.round(perMinute * 60)} calls an hour while markets are open`;
+  } else {
+    const at = exhaustsAt(Math.max(0, usage.limit - usage.used), perMinute, 60_000, now)!;
+    projection = `at this schedule (${Math.round(perMinute * 60)} calls an hour while markets are open) the limit is reached at ${at.toISOString().slice(11, 16)} UTC`;
+  }
+  return (
+    <p className="text-sm text-zinc-600 tabular-nums dark:text-zinc-400">
+      {meter}
+      {usage?.mock ? " (fixtures, not your account)" : ""} · a refresh by hand costs {price} · {projection}.
     </p>
   );
 }

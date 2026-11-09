@@ -247,3 +247,19 @@ Priced with estimateCalls on `real-time/MSFT.US`: 1 call a check, because /real-
 per symbol. Even the five-minute loop needs four times the allowance, for one rule. Today the
 rules are checked only while the dashboard is open, and the page says so.
 
+
+### Update intervals
+
+How often the number actually changes, measured with `scripts/sample-interval.mjs` (ten
+samples a minute apart, 1 call each):
+
+```
+Liquid (AAPL.US):   ___ s median gap   taken ____-__-__ __:__ UTC, market open: ___
+Thin (________):    ___ s median gap   taken ____-__-__ __:__ UTC, market open: ___
+```
+
+Not measured on this copy: it runs on fixtures, where every sample is the same answer and
+the script says "no change". Measuring costs 20 calls, a whole free day, so it waits for a
+day the allowance is not needed for anything else. Until then the cockpit assumes the feed's
+own resolution: the fixture's quotes are stamped to the minute, so nothing refreshes faster
+than once a minute.

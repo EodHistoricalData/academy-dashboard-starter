@@ -1,7 +1,7 @@
 "use client";
 
 import { useSearchParams } from "next/navigation";
-import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState, useSyncExternalStore } from "react";
 import { LayoutSwitcher } from "@/components/LayoutSwitcher";
 import { PanelBoundary } from "@/components/PanelBoundary";
 import { PanelFrame } from "@/components/PanelFrame";
@@ -10,6 +10,7 @@ import { QuotePanel } from "@/components/panels/QuotePanel";
 import { ScreenPanel } from "@/components/panels/ScreenPanel";
 import { WatchlistPanel } from "@/components/panels/WatchlistPanel";
 import { toTicker } from "@/lib/added";
+import { ageSeconds, describeAge } from "@/lib/age";
 import type { Bar } from "@/lib/backtest/bars";
 import { putDocViaRoute } from "@/lib/doc-client";
 import { type Failure, failureSentence } from "@/lib/failure";
@@ -48,6 +49,21 @@ import {
   type Selection,
   shownSymbol,
 } from "@/lib/selection";
+
+/**
+ * A clock for ages, read again every 15 seconds, so "2 min old" keeps counting between
+ * fetches. Outside React, because reading the time while rendering is not pure.
+ */
+let clockNow = Date.now();
+function subscribeClock(onChange: () => void) {
+  clockNow = Date.now();
+  const id = setInterval(() => {
+    clockNow = Date.now();
+    onChange();
+  }, 15_000);
+  return () => clearInterval(id);
+}
+const readClock = () => clockNow;
 
 /** Which definition draws which panel type. The container knows them all; they know none. */
 const PANELS: Record<string, PanelDef<never>> = {
@@ -142,6 +158,7 @@ export function Cockpit({
   const [fetching, setFetching] = useState<ReadonlySet<string>>(new Set());
   const [failures, setFailures] = useState<ReadonlyMap<string, Failure>>(new Map());
   const [selection, setSelection] = useState<Selection>(NO_SELECTION);
+  const now = useSyncExternalStore(subscribeClock, readClock, readClock);
 
   // The one way the selection changes. Selecting what is already selected returns the
   // same object, so nothing re-renders: remove that guard in nextSelection and the two
@@ -379,8 +396,17 @@ export function Cockpit({
     return data.quotes.length === 0 && needs.quotes.length > 0 ? null : data.quotes;
   }
 
+  // Each open panel's age, from its own rows. The header shows the oldest live one.
+  const ages = layout.panels.flatMap((panel, i) => {
+    const needs = needsByPanel[i];
+    if (!needs || panel.collapsed) return [];
+    const age = ageOf(needs, dataFor(needs), now);
+    return age ? [{ panel, age }] : [];
+  });
+
   return (
     <div className="flex flex-col gap-4">
+      <OldestLine ages={ages} />
       <div className="flex flex-wrap items-start gap-4">
         <div className="min-w-0 flex-1">
           <LayoutSwitcher
@@ -440,7 +466,7 @@ export function Cockpit({
               panel={panel}
               onRename={onRename}
               onCollapse={onCollapse}
-              aside={asideFor(state.kind, needs, data)}
+              aside={asideFor(state.kind, ageOf(needs, data, now))}
             >
               <PanelBoundary>
                 {state.kind === "loading" ? (
@@ -513,37 +539,69 @@ function distanceLine(rule: Rule): string {
   return `now ${fmt(rule.lastValue)}, ${fmt(Math.abs(gap))} ${past ? "past" : "short of"} the threshold${state}`;
 }
 
+/**
+ * How old a panel's data is, from the data's own clock. Quotes carry the time of their last
+ * trade, so they get an age in seconds; a screen and a daily history carry a date, and are
+ * labelled end of day with it rather than given an age they do not have.
+ */
+type Age =
+  | { kind: "live"; seconds: number; symbol: string }
+  | { kind: "daily"; date: string };
+
+function ageOf(needs: Needs, data: PanelData, now: number): Age | null {
+  if (needs.screen) {
+    const date = data.screen?.rows[0]?.last_day_data_date;
+    return date ? { kind: "daily", date } : null;
+  }
+  if (needs.eod) {
+    const date = data.bars?.rows.at(-1)?.date;
+    return date ? { kind: "daily", date } : null;
+  }
+  const oldest = oldestTimestamp(data.quotes.map((q) => q.row));
+  if (oldest === null) return null;
+  const symbol = data.quotes.find((q) => isAvailable(q.row) && q.row.timestamp === oldest)!.row.code;
+  return { kind: "live", seconds: ageSeconds(oldest, now), symbol };
+}
+
+const ageText = (age: Age) =>
+  age.kind === "live" ? describeAge(age.seconds) : `end of day, ${age.date}`;
+
 /** The small text at the right of a panel's title: its state, and the age of what it shows. */
-function asideFor(kind: string, needs: Needs, data: PanelData): string {
-  const age = ageOf(needs, data);
+function asideFor(kind: string, age: Age | null): string {
+  const text = age ? ageText(age) : null;
   switch (kind) {
     case "loading":
       return "Loading…";
     case "refreshing":
-      return age ? `${age} · refreshing…` : "Refreshing…";
+      return text ? `${text} · refreshing…` : "Refreshing…";
     case "failed":
-      return age ? `${age} · stale, refresh failed` : "Failed";
+      return text ? `${text} · stale, refresh failed` : "Failed";
     default:
-      return age ?? "";
+      return text ?? "";
   }
 }
 
-/** The age of the data itself, from its own dates, not from when it was fetched. */
-function ageOf(needs: Needs, data: PanelData): string | null {
-  if (needs.screen) {
-    const date = data.screen?.rows[0]?.last_day_data_date;
-    return date ? `session ${date}` : null;
-  }
-  if (needs.eod) {
-    const last = data.bars?.rows.at(-1)?.date;
-    return last ? `to ${last}` : null;
-  }
-  const oldest = oldestTimestamp(data.quotes.map((q) => q.row));
-  if (oldest === null) return null;
-  const minutes = Math.max(0, Math.round((data.quotes[0].fetchedAt / 1000 - oldest) / 60));
-  if (minutes < 60) return `${minutes} min old`;
-  const hours = Math.round(minutes / 60);
-  return hours < 48 ? `${hours} h old` : `${Math.round(hours / 24)} days old`;
+/**
+ * The header: a cockpit has no single "as of", so it shows the oldest quote on screen, and
+ * says separately that the daily panels are end of day.
+ */
+function OldestLine({ ages }: { ages: { panel: Panel; age: Age }[] }) {
+  const live = ages.flatMap(({ panel, age }) => (age.kind === "live" ? [{ panel, age }] : []));
+  const daily = ages.flatMap(({ age }) => (age.kind === "daily" ? [age.date] : []));
+  if (live.length === 0 && daily.length === 0) return null;
+  const oldest = live.reduce<(typeof live)[number] | null>(
+    (worst, a) => (worst === null || a.age.seconds > worst.age.seconds ? a : worst),
+    null,
+  );
+  const firstDay = [...daily].sort()[0];
+  return (
+    <p className="text-sm text-zinc-600 tabular-nums dark:text-zinc-400">
+      {oldest &&
+        `Oldest quote on screen: ${oldest.age.symbol}, ${describeAge(oldest.age.seconds)} (${oldest.panel.title}).`}
+      {oldest && firstDay && " "}
+      {firstDay && `End-of-day panels: data to ${firstDay}.`}
+    </p>
+  );
 }
 
 function Skeleton() {

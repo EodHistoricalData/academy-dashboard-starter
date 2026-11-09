@@ -214,6 +214,12 @@ a choice to you, the section for that unit says which one we made. Yours can dif
 
 ## Backtest Strategies · unit 3: Honesty Checks
 
+- Files follow the rewritten lessons: the shuffled control is in `shuffle.ts` (with the
+  fill-range check the tests use), and the tests are split as the lessons split them:
+  `costs.test.ts` (what was paid), `fills.test.ts` (inside the bar's range, next open,
+  slippage), `honesty.test.ts` (the two leak tests and the shuffle). Costs and slippage stay
+  inside `strategy.ts`, charged at each position change.
+
 - Costs: charged at each position change, compounding; the page prints cost as a share of
   the starting balance and of the gross gain, and the net return at 0, 5, 10 and 25 bps.
 - Slippage and fills: `Params` gains `slippageBps` (default 5, always against the trade)

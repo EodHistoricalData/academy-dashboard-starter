@@ -1,8 +1,8 @@
 import { readFileSync } from "node:fs";
 import { describe, expect, it } from "vitest";
 import type { Bar } from "@/lib/backtest/candles";
-import { backtest, costShare, DEFAULTS } from "@/lib/backtest/strategy";
-import { fillsOutsideRange, shuffled } from "@/lib/backtest/shuffle";
+import { backtest, DEFAULTS } from "@/lib/backtest/strategy";
+import { shuffled } from "@/lib/backtest/shuffle";
 import { signals } from "@/lib/backtest/signal";
 
 const spy: Bar[] = JSON.parse(readFileSync("fixtures/eod/SPY.US.json", "utf8"));
@@ -29,23 +29,7 @@ describe("2. truncation", () => {
   });
 });
 
-describe("3. fill range", () => {
-  it("fills every trade inside its bar's low-to-high, at the next open or the close", () => {
-    for (const fill of ["next-open", "signal-close"] as const) {
-      const run = backtest(spy, { ...DEFAULTS, fill });
-      expect(run.fills.length).toBeGreaterThan(0);
-      expect(fillsOutsideRange(spy, run)).toEqual([]);
-    }
-  });
-
-  it("catches a fill taken from the wrong day", () => {
-    const run = backtest(spy, DEFAULTS);
-    const moved = { ...run, fills: run.fills.map((f) => ({ ...f, price: f.price * 1.05 })) };
-    expect(fillsOutsideRange(spy, moved).length).toBeGreaterThan(0);
-  });
-});
-
-describe("4. shuffle (a null test, not a leak test)", () => {
+describe("3. shuffle (a null test, not a leak test)", () => {
   it("keeps the dates and the set of daily moves, and changes only their order", () => {
     const s = shuffled(spy, 42);
     expect(s.map((b) => b.date)).toEqual(spy.map((b) => b.date));
@@ -58,33 +42,4 @@ describe("4. shuffle (a null test, not a leak test)", () => {
     expect(s.map((b) => b.adjusted_close)).not.toEqual(spy.map((b) => b.adjusted_close));
     expect(shuffled(spy, 42)).toEqual(s); // seeded: the same run twice
   });
-});
-
-describe("next open, against you", () => {
-  it("fills an entry at the next bar's open, and charges slippage on top of cost", () => {
-    const run = backtest(spy, DEFAULTS);
-    const first = run.fills[0];
-    expect(first.at).toBe("open");
-    expect(first.price).toBe(spy[first.bar].open);
-    const noSlip = backtest(spy, { ...DEFAULTS, slippageBps: 0 });
-    expect(run.net.at(-1)!).toBeLessThan(noSlip.net.at(-1)!);
-  });
-
-  it("is a different number from filling at the signal close", () => {
-    const close = backtest(spy, { ...DEFAULTS, fill: "signal-close" });
-    const open = backtest(spy, DEFAULTS);
-    expect(open.net.at(-1)).not.toBeCloseTo(close.net.at(-1)!, 6);
-  });
-});
-
-describe("cost share", () => {
-  it("is what was paid, as a share of the start and of the gross gain", () => {
-    const run = backtest(spy, DEFAULTS);
-    const gross = run.gross.at(-1)! - 1;
-    const net = run.net.at(-1)! - 1;
-    const share = costShare(run);
-    expect(share.ofStart).toBeCloseTo(gross - net, 12);
-    expect(share.ofGross).toBeCloseTo((gross - net) / gross, 12);
-  });
-
 });

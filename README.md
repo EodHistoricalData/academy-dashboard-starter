@@ -41,6 +41,29 @@ what the free plan's 20 calls a day cannot buy.
 - **History: it cannot test across regimes.** The free plan reaches one year of daily bars (251 bars, 2025-10-31 to 2026-10-30 in the fixture): one rally and one drawdown of about 9%; no 2008, 2020 or 2022.
 - **Real-time: it cannot refresh, and cannot alert.** The default layout costs 13 calls a refresh (7 watchlist tickers, a screen at 5, one daily history), so a free day buys one; after it the cockpit keeps the morning's numbers, labelled stale, until 00:00 UTC. Alert rules are checked only while the dashboard is open: a server checking one rule every 5 minutes would need 78 calls a day.
 
+### What it costs to keep running
+
+Worked out from the code, each request priced with `estimateCalls()` in `src/lib/cost.ts`, for
+the dashboard left open on a weekday with the default layout:
+
+```
+Interactive   the watchlist's 7 symbols, real-time, 1 call each, every minute while       3,900/day
+              each one's market is open (4 US for 390 min, VOD.LSE 510, 005930.KO 390,
+              BTC-USD.CC all 1,440); the screen, 5 calls every 15 min of the US session  +  130
+              (26 times); the first load, 13; the backtest, by hand: 0                   +   13
+Alerting      the rule's symbol (MSFT.US) rides in the watchlist's round: no call of its own   0
+Monitoring    /api/health and the watch read the free user endpoint                          0
+Total                                                                                    4,043/day
+Allowance     free plan                                                                    20/day
+Measured      not on this copy: it runs on fixtures; read /api/usage before and after an
+              hour of use on a live key
+Decision      run it by hand: opened in the morning with every panel set to by hand, one
+              refresh, then read until midnight UTC. Nothing on a timer.
+```
+
+The cockpit stops itself long before 4,043: its own wall holds the loop back while a refresh
+by hand still fits, and the proxy's quota policy stops a panel's timer at 75% of the day.
+
 And the rest:
 
 - **It does not know market holidays.** On one, the refresh loop asks anyway and the ages show nothing moved.

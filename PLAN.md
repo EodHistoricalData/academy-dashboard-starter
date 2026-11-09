@@ -1,3 +1,36 @@
+For: me in four months, and anyone who finds the repository on my profile and has nothing else.
+
+## Shipping backlog
+
+What a stranger with only the URL would have to ask before they could run this, and where
+each answer belongs.
+
+**Run it**
+
+- Which key, is it free, and where do I get one? — README: What you need first
+- Which Node version? — README, `.nvmrc`
+- What goes in `.env.local`, and what does each variable default to? — `.env.example`
+- What is mock mode, and is it on right now? — README; the page's own notice
+- What happens if I start it with no key at all? — README; the server's start-up message
+- Why does saving ask me to sign in, and what are `DASHBOARD_PASSWORD` and `SESSION_SECRET`? — README
+- Which commands, in which order? — README: Run it
+
+**Read it**
+
+- What does it do, and what does it not do? — README
+- Why does the browser never call the API? — README: How it works
+- Why does every panel show an age, and why is it hours old? — README
+- What does a page load cost in API calls, and where is that worked out? — README; `src/lib/cost.ts`
+- Where do layouts, notes and rules live? — README: How it works (`.data/app.db`)
+- May I use the code, and the data? — README: Licence; `LICENSE`; `NOTICE`
+
+**Tell when it is broken**
+
+- How would I know the tool has stopped working? — a health check (unit 2)
+- What happens when the day's calls run out? — README: What it does not do
+- Where do errors go when nobody is watching the browser? — the server log (unit 2)
+- Which commit is running? — the health check (unit 3)
+
 # Plan: my watchlist
 
 ## Purpose

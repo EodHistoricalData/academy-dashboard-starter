@@ -1,0 +1,33 @@
+# Reads the deployed health answer from outside, every fifteen minutes and by hand, and
+# reports to a heartbeat service (Healthchecks.io), which tells you about a failure and
+# about silence: GitHub turns off a public repository's schedules after 60 days without
+# activity, and a tool that works is a tool nobody commits to.
+#
+# Spends no API calls: /api/health reads only the free user endpoint.
+#
+# Needs: the repository variable HEALTH_URL (gh variable set HEALTH_URL) and the secret
+# WATCH_HEARTBEAT_URL (gh secret set WATCH_HEARTBEAT_URL). Without the secret it warns and
+# sends nothing. A schedule runs on the default branch only.
+name: Watch
+
+on:
+  schedule: [{ cron: "*/15 * * * *" }]
+  workflow_dispatch:
+
+jobs:
+  watch:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    env:
+      HEALTH_URL: ${{ vars.HEALTH_URL }}
+      HB: ${{ secrets.WATCH_HEARTBEAT_URL }}
+    steps:
+      - name: Health, from outside
+        run: |
+          body=$(curl -fsS -m 20 "$HEALTH_URL") || { echo "no 200 from $HEALTH_URL" > reason; exit 1; }
+          echo "$body" | jq -e '.ok == true and (.daily_limit == null or .calls_used < .daily_limit * 0.8)' \
+            || { echo "unhealthy: $body" > reason; exit 1; }
+      - if: success()
+        run: '[ -z "$HB" ] && echo "::warning::no heartbeat URL" || curl -fsS -m 10 "$HB"'
+      - if: failure()
+        run: '[ -z "$HB" ] && echo "::warning::no heartbeat URL" || curl -fsS -m 10 --data-binary @reason "$HB/fail"'

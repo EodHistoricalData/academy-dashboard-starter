@@ -66,7 +66,8 @@ look so polished that the learner is afraid to touch it.
 - **Failure is named, never blank.** A key that is missing, rejected, or out of quota each
   say so specifically. A blank panel is the one outcome that teaches nothing.
 - **No decoration that implies a recommendation.** No arrows suggesting momentum, no
-  highlight on "movers", no ranking that is not the learner's own ordering.
+  highlight on "movers". A sort is fine when the learner picks it and the page names it
+  ("by size of move", "by volume"); the default order is the learner's own list.
 
 ## Accessibility
 

@@ -29,12 +29,12 @@ describe("sortRows", () => {
     ]);
   });
 
-  it("puts the biggest move first by change %, not by price", () => {
+  it("puts the biggest move first by size of change %, up or down, not by price", () => {
     const rows = [quote("SPY.US", 0.34), quote("NVDA.US", 2.55), quote("MSFT.US", -0.67)];
     expect(sortRows(rows, "change_p", []).map((r) => r.code)).toEqual([
       "NVDA.US",
-      "SPY.US",
       "MSFT.US",
+      "SPY.US",
     ]);
   });
 

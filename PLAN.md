@@ -50,6 +50,10 @@ read about before the market opens.
 
 ## Not building
 
+Written at the end of Build Your First Tool and kept as a record. The courses since have built
+some of these (a sign-in and a store on the server among them); the Course 4 sections below
+say what changed, and they win where the two disagree.
+
 - User accounts or a login.
 - A database. The list is a file in the repo.
 - Charts. Not even a sparkline yet.

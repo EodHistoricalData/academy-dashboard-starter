@@ -27,6 +27,8 @@ any line that says what a change will cost in API calls.
 Where a course has reference answers, they are on branches of this repository: one per
 lesson for Runs Without You (`ref/runs-without-you/3`), one per unit for the five build
 courses (`ref/build-a-dashboard/u2`). Each branch is what a careful
-learner has after that lesson, built on the one before it. Add the starter as a remote once,
+learner has after that lesson, built on the one before it. If you cloned this starter, it is
+already your `origin`: `git fetch origin`, then `git diff origin/ref/<course>/<lesson>`. If your
+copy now points at a repository of your own, add the starter once as a second remote,
 `git remote add upstream https://github.com/EodHistoricalData/academy-dashboard-starter.git`,
 then `git fetch upstream` and `git diff upstream/ref/<course>/<lesson>`.

@@ -3,9 +3,8 @@ import type { Quote } from "@/lib/quotes";
 import { isAvailable, type Row as WatchlistRow } from "@/lib/rows";
 
 /**
- * The watchlist itself: one row per ticker, ordered exactly as the learner wrote them in
- * src/lib/watchlist.ts. Deliberately not sorted by movement — a tool that reorders itself
- * by "biggest mover" is making a suggestion, and this one has no opinion.
+ * The watchlist itself: one row per ticker, in the order it is handed. The page picks that
+ * order and says which one it is; this component never reorders anything.
  */
 export function Watchlist({ rows }: { rows: WatchlistRow[] }) {
   return (

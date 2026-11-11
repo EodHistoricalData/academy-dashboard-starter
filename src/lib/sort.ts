@@ -4,7 +4,7 @@ import { isAvailable, type Row } from "@/lib/rows";
  * The orders the watchlist offers. Each one is an opinion about what deserves attention:
  *
  *   manual    my own priority; hides today's outliers
- *   change_p  what moved most; hides anything stable
+ *   change_p  what moved most, up or down; hides anything stable
  *   volume    where the activity is; hides thin names doing something unusual
  *
  * There is no sort by absolute `change` on purpose: that mostly sorts by share price.
@@ -36,7 +36,7 @@ export function sortRows(rows: Row[], key: SortKey, order: string[]): Row[] {
   const priced = rows.filter(isAvailable);
   const unpriced = rows.filter((r) => !isAvailable(r));
   const value = (r: (typeof priced)[number]) =>
-    key === "volume" ? (r.volume ?? -1) : r.change_p;
+    key === "volume" ? (r.volume ?? -1) : Math.abs(r.change_p);
 
   // filter() has already copied, so these sorts touch nothing the caller holds.
   return [

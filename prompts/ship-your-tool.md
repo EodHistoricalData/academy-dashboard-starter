@@ -1,21 +1,18 @@
-# Course 5 prompts: Ship Your Tool
+<!-- Generated from the lessons of Ship Your Tool by scripts/sync_starter_prompts.py in the academy repository. Edit the lesson and run the script; an edit here is overwritten. -->
 
-The prompts the lessons of this course ask you to paste, in lesson order, copied from the
-lessons themselves. Start Claude Code in this folder with `EODHD_MOCK=1` in `.env.local`,
-paste one prompt at a time, and read the plan before you say yes. Each lesson says what a
-good answer changes and how to check it yourself.
+# Ship Your Tool prompts
 
-The reference state at the end of each unit is on the branch `ref/ship-your-tool/u<unit>` of this
-repository: `git fetch upstream`, then `git diff upstream/ref/ship-your-tool/u1`.
+The prompts the lessons of this course ask you to paste, in lesson order, copied from the lessons themselves with the lines that say where and how to paste them. Start your agent in this folder, with `EODHD_MOCK=1` in `.env.local` unless the lesson says otherwise, paste one prompt at a time, and read the plan before you say yes. Each lesson says what a good answer changes and how to check it yourself.
+
+The reference state at the end of each unit is on the branch `ref/ship-your-tool/u<unit>` of this repository. If you cloned the starter, it is your `origin`: `git fetch origin`, then `git diff origin/ref/ship-your-tool/u1`. If your copy points at a repository of your own, [README.md](README.md) says how to add the starter as `upstream`.
 
 ## 1. What "shipped" actually means (unit 1)
 
-Write the audience sentence yourself: it is a decision, and nothing in the code can make it for you. Then put `EODHD_MOCK=1` in `.env.local`, start the agent in your repository, press `Shift+Tab` until the status bar says plan mode on, and paste:
+Write the audience sentence yourself: it is a decision, and nothing in the code can make it for you. Then put `EODHD_MOCK=1` in `.env.local`, start the agent in your repository, press `Shift+Tab` until plan mode shows under the prompt, and paste:
 
 ```
-Read this repository as the person named in the first line of PLAN.md:
-someone who has the repository's URL and nothing else, and cannot ask
-me anything. List every question they would need answered before they
+Read this repository as the person named in the first line of PLAN.md,
+who has only the repository and cannot ask me anything. List every question they would need answered before they
 could clone it, configure it, run it, and tell whether it is working.
 Group them under Run it, Read it, and Tell when it is broken, and name
 the file where each answer should live. Make no API call and change no
@@ -32,14 +29,17 @@ Rewrite README.md in this order: what it is and who it is for, from
 the first line of PLAN.md; one screenshot at docs/screenshot.png; run
 it in five commands, numbered, with no prose between them except on
 the configure step, which says what to set in .env.local: the key, or
-EODHD_MOCK=1 to run on fixtures; what you need first, a free EODHD API
+EODHD_MOCK=1 to run on fixtures; what you need first, an EODHD API
 key and where to get one; what it does;
 what it does not do; how it works; and the licence, for the code and
-separately for the data. Answer every question in the Shipping backlog
+separately for the data. The clone command uses this repository's own
+URL from git remote -v, never the starter's
+(EodHistoricalData/academy-dashboard-starter); if there is no other,
+write TODO there. Answer every question in the Shipping backlog
 that belongs in a README. Under "What it does not do", list each limit
 you can see in the code, one line each, and write TODO wherever a
 figure needs measuring: I fill those in. Make no API call. Show me the
-outline first, then the diff.
+outline first and wait for my yes, then show me the diff.
 ```
 
 ## 3. Configuration for someone else's machine (unit 1)
@@ -57,7 +57,8 @@ Next.js version's guide in node_modules/next/dist/docs/ first. Remove
 the home page's own no-key branch in src/app/page.tsx, which can no
 longer be reached. In
 .env.example, empty the key line and list every variable the code
-reads, with its default. Tests first. Do not open .env.local. Done
+reads, with its default. Tests first. You may edit .env.example, the one env file that holds no
+secrets; do not open .env.local. Done
 means npm test, npm run typecheck, npm run lint and npm run check:leak
 green; then show me the diff.
 ```
@@ -72,7 +73,9 @@ existing copyright line and add one under it with this year and my
 name, which I will type. Leave NOTICE as it is unless it names a file
 that does not exist. In README.md, under Licence, write two sentences:
 the code is MIT, see LICENSE; the market data it fetches is not
-covered, see NOTICE. Put "Powered by EODHD APIs" and "Not investment
+covered, see NOTICE. Keep any other sentence now under Licence, such
+as one about serving other people from a public URL, after those two
+rather than dropping it. Put "Powered by EODHD APIs" and "Not investment
 advice" in one footer in src/app/layout.tsx so every page carries it,
 and remove any page footer that now says the same thing twice. Make no
 API call. Done means npm test, npm run typecheck, npm run lint and
@@ -108,10 +111,12 @@ package-lock.json, and show me the command you counted with. Then run
 npm audit and npm audit --omit=dev, and for each finding say whether
 it ships with the app or is dev-only, and whether npm audit fix
 resolves it without a major version. Change nothing yet. After I
-decide, write the two counts under How it works in README.md, add a
-step running npm audit --omit=dev right after npm ci in the checks job
-of .github/workflows/key-scan.yml, and put every finding I chose not
-to fix in REVIEW.md with my reason and a date to look again.
+decide, run npm audit fix for any fix I approved, then npm audit again,
+and treat a finding the second run still lists as not fixed, whatever
+the first run said. Write the two counts under How it works in
+README.md, add a step running npm audit --omit=dev right after npm ci
+in the checks job of .github/workflows/key-scan.yml, and put every
+finding still open in REVIEW.md with my reason and a date to look again.
 ```
 
 ## 7. The security pass before anything is public (unit 2)
@@ -233,10 +238,11 @@ checks workflow in .github/workflows/key-scan.yml every Monday and by
 hand, as well as on pull requests. Its jobs only run for pull requests
 that are not drafts; make the condition say plainly that a scheduled or
 manual run counts, and give those runs a concurrency group of their own.
-Two: Node is pinned in .nvmrc, which CI reads; pin the same major
-version in engines in package.json, which the host reads, keeping the
-22.13 floor the store's node:sqlite needs, and run npm install so the
-lockfile's copy agrees. Change nothing else, run
+Two: Node is pinned in .nvmrc, which CI reads. In engines in
+package.json, which the host reads, state the floor the store's
+node:sqlite needs, ">=22.13.0", with no upper limit so a newer Node on
+my own machine does not warn, and run npm install so the lockfile's
+copy agrees. Change nothing else, run
 npm test, npm run typecheck, npm run lint and npm run check:leak, and
 show me the diff.
 ```

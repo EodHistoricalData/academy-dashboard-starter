@@ -18,12 +18,32 @@ Every file is generated from its lessons' own "The prompt" sections, with the li
 each prompt that say where and how to paste it, so a prompt here and in its lesson are the
 same text. Do not edit them by hand: the next generation overwrites the edit.
 
-They are written for Claude Code, started in this folder, and they lean on what the repo
-already gives the agent: the rules in `AGENTS.md`, mock mode, the cost table in
-`src/lib/cost.ts`, and `npm test`. Any agent that reads `AGENTS.md` will follow them.
+They lean on what the repo already gives the agent: the rules in `AGENTS.md`, mock mode, the
+cost table in `src/lib/cost.ts`, and `npm test`. Any agent that reads `AGENTS.md` will
+follow them.
 
 Paste one prompt at a time. Read what the agent proposes before you say yes, especially
 any line that says what a change will cost in API calls.
+
+## Claude Code or Codex CLI
+
+The courses work with both agents. The prompts are the same text for either: both read
+`AGENTS.md`, Claude Code through the one-line `CLAUDE.md` that imports it, Codex directly.
+Where a lesson's command or file differs between the two, the lines around its prompt give
+both, Claude Code first, and a prompt that names one agent's command keeps the lesson's own
+wording. The differences you meet most often:
+
+| | Claude Code | Codex CLI |
+|---|---|---|
+| Start in the learning mode | `claude --permission-mode manual` | `codex --sandbox read-only --ask-for-approval on-request` |
+| Plan mode | `Shift+Tab` until plan mode shows, or `/plan`; edits wait until you approve the plan | the same keys, but plan mode is an instruction rather than a lock, so plan in Read Only |
+| Fresh context | `/clear` | `/clear`; to make it read `AGENTS.md` again, quit and run `codex` |
+| The built-in review | `/code-review` | `/review`, or `codex review --base main` from your shell |
+| The EODHD MCP server | `.mcp.json` in this folder; approve it on the first start | `codex mcp add eodhd --url https://mcp.eodhd.com/v2/mcp`, once, from your shell: Codex does not read `.mcp.json` |
+| Keeping the agent out of `.env.local` | the deny rules in `.claude/settings.json` | no counterpart; rule 2 of `AGENTS.md` and your own reading of each command |
+| Allowing routine commands | `.claude/settings.local.json` | `~/.codex/rules/default.rules`, outside the repository |
+
+Pair With Your Agent explains each row the first time it matters.
 
 ## Reference branches
 

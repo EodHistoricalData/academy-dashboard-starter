@@ -106,7 +106,7 @@ A change is finished when these pass, not when the page looks right. `npm test` 
 
 ## Using it with Claude Code
 
-The course uses [Claude Code](https://code.claude.com/docs) as its coding agent. This repo is already set up for it:
+The courses use [Claude Code](https://code.claude.com/docs) as their coding agent, and every lesson works with Codex CLI as well; [`prompts/README.md`](prompts/README.md) lists where the two differ. This repo is already set up for Claude Code:
 
 - `AGENTS.md` (which `CLAUDE.md` imports) gives the agent the rules of this codebase: market data only through the proxy, mock mode while iterating, the cost of a new request stated before it is written, `npm test && npm run check:leak` as the definition of done.
 - `.claude/settings.json` stops the agent reading `.env`, `.env.local` and the other files Next.js loads secrets from. It cannot stop a script the agent runs from reading them, so the rule in `AGENTS.md` is the other half.

@@ -3,7 +3,8 @@
  *
  * A request is not a call. Calls are the currency your daily quota is counted in, and
  * different endpoints charge different amounts for one request. The free plan has 20 calls
- * a day, so a single fundamentals request is half of it.
+ * a day, so the news for one ticker is a quarter of it. Some endpoints below (fundamentals,
+ * the screener, technical, intraday, options) are not on the free plan at all.
  *
  * Measured against a live account, not copied from a pricing page. Keyed by the endpoint:
  * the first segment of the path after /api/ (the "eod" of eod/AAPL.US). Look a new endpoint

@@ -130,7 +130,7 @@ For EODHD's skills and slash commands as well, install the official plugin from 
 
 Its commands are namespaced: `/eodhd-api:eodhd-analyze AAPL`, not `/eodhd-analyze`. The plugin connects the same MCP server; the entry in this repo's `.mcp.json` takes precedence over the plugin's copy, so you sign in once.
 
-**MCP calls spend the same quota.** A question the agent answers through the MCP server is billed in API calls exactly as your app's requests are, against the same daily limit. On the free plan's 20 a day, one fundamentals lookup is half of it. Ask the agent to work on fixtures (`EODHD_MOCK=1`) and to say what a live call will cost before making one.
+**MCP calls spend the same quota.** A question the agent answers through the MCP server is billed in API calls exactly as your app's requests are, against the same daily limit. On the free plan's 20 a day, the news for one ticker costs 5, a quarter of the day, and the news for four tickers is all of it. (Fundamentals cost 10 a company and are not on the free plan at all.) Ask the agent to work on fixtures (`EODHD_MOCK=1`) and to say what a live call will cost before making one.
 
 The prompts the course uses are in [`prompts/`](prompts/).
 

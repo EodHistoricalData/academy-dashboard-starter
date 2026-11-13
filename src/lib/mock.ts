@@ -10,6 +10,7 @@ import path from "node:path";
  *   real-time/AAPL.US?s=MSFT.US   fixtures/real-time.json, the rows for those symbols
  *   eod/AAPL.US                   fixtures/eod/AAPL.US.json
  *   fundamentals/AAPL.US          fixtures/fundamentals/AAPL.US.json
+ *   sentiments?s=AAPL.US,MSFT.US  fixtures/sentiments.json, the days for those symbols
  *   user                          fixtures/user.json
  *
  * To mock something new, save a real answer's shape under the same path. A request with no
@@ -26,6 +27,7 @@ export async function mockFetch(
   if (!endpoint) return missing("(empty path)");
 
   if (endpoint === "real-time") return realTime(rest[0], params.s);
+  if (endpoint === "sentiments") return sentiments(params);
 
   const relative =
     rest.length > 0
@@ -61,6 +63,27 @@ async function realTime(first: string | undefined, s: string | undefined) {
     (code) => rows.find((r) => r.code === code) ?? notTraded(code),
   );
   return json(s !== undefined ? answer : answer[0] ?? null);
+}
+
+/**
+ * News tone, keyed by symbol, keeping the API's trap: a symbol with no days is left out of
+ * the object, and when none of the asked symbols has any the answer is `[]`, an empty
+ * array, not `{}`. `from` and `to` narrow the days, as they do upstream.
+ */
+async function sentiments(params: Record<string, string>) {
+  const all = (await readFixture("sentiments.json")) as Record<string, Row[]> | undefined;
+  if (all === undefined) return missing("sentiments.json");
+
+  const within = (d: Row) =>
+    typeof d.date === "string" &&
+    (!params.from || d.date >= params.from) &&
+    (!params.to || d.date <= params.to);
+  const answer: Record<string, Row[]> = {};
+  for (const symbol of (params.s ?? "").split(",").map((x) => x.trim())) {
+    const days = Object.hasOwn(all, symbol) ? all[symbol].filter(within) : [];
+    if (days.length > 0) answer[symbol] = days;
+  }
+  return json(Object.keys(answer).length > 0 ? answer : []);
 }
 
 function notTraded(code: string): Row {

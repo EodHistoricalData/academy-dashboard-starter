@@ -13,7 +13,7 @@ import { WATCHLIST } from "@/lib/watchlist";
  * fails is refused (never repaired), and a type this code does not know becomes a
  * placeholder that says so. One bad panel never takes down the cockpit.
  */
-export const PANEL_TYPES = ["watchlist", "screen", "backtest", "quote"] as const;
+export const PANEL_TYPES = ["watchlist", "screen", "backtest", "quote", "heatmap"] as const;
 export type PanelType = (typeof PANEL_TYPES)[number];
 
 export type Position = { x: number; y: number; w: number; h: number };
@@ -26,6 +26,8 @@ export type WatchlistConfig = { symbols: string[]; follows: boolean };
 export type ScreenConfig = { filters: Filter[]; sort: Sort; follows: boolean };
 export type BacktestConfig = Params & { symbol: string; follows: boolean };
 export type QuoteConfig = { symbol: string; follows: boolean };
+/** A heatmap draws a screen: the same filters and sort, so the same request. */
+export type HeatmapConfig = ScreenConfig;
 
 /** `collapsed`: only the title shows, and the panel asks for nothing. Saved with the layout. */
 type Base = { id: string; title: string; position: Position; collapsed: boolean };
@@ -34,6 +36,7 @@ export type Panel =
   | (Base & { type: "screen"; config: ScreenConfig })
   | (Base & { type: "backtest"; config: BacktestConfig })
   | (Base & { type: "quote"; config: QuoteConfig })
+  | (Base & { type: "heatmap"; config: HeatmapConfig })
   /** A panel this code cannot draw: an unknown type, or a config that failed its check. */
   | (Base & { type: "placeholder"; config: { reason: string } });
 
@@ -76,6 +79,35 @@ export const DEFAULT_LAYOUT: Layout = {
       title: "SPY.US, 20/50",
       config: { symbol: "SPY.US", ...BACKTEST_DEFAULTS, follows: false },
       position: { x: 1, y: 2, w: 3, h: 1 },
+      collapsed: false,
+    },
+  ],
+};
+
+/**
+ * The second built-in: the same screen as a map, sized by market capitalisation, and a
+ * quote that shows the tile you click. Offered beside the saved layouts by layoutsFrom; a
+ * saved layout of the same name wins. The heatmap asks what the default's screen panel
+ * asks, so switching between the two layouts is one screener request, not two.
+ */
+export const MARKETS_LAYOUT: Layout = {
+  name: "Markets",
+  version: CURRENT_VERSION,
+  panels: [
+    {
+      id: "heatmap",
+      type: "heatmap",
+      title: "Big and profitable, by size",
+      config: { filters: MY_FILTERS, sort: "market_capitalization.desc", follows: false },
+      position: { x: 0, y: 0, w: 3, h: 3 },
+      collapsed: false,
+    },
+    {
+      id: "quote",
+      type: "quote",
+      title: "Quote",
+      config: { symbol: WATCHLIST[0], follows: true }, // shows the tile you click
+      position: { x: 3, y: 0, w: 1, h: 1 },
       collapsed: false,
     },
   ],
@@ -142,6 +174,7 @@ const CHECK: Record<PanelType, (config: unknown) => object | null> = {
   screen: parseScreenConfig,
   backtest: parseBacktestConfig,
   quote: parseQuoteConfig,
+  heatmap: parseScreenConfig, // a screen's config, checked as one
 };
 
 /**

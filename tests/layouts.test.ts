@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import { putDocViaRoute } from "@/lib/doc-client";
-import { DEFAULT_LAYOUT } from "@/lib/layout";
+import { DEFAULT_LAYOUT, MARKETS_LAYOUT } from "@/lib/layout";
 import { exportLayout, layoutsFrom, resolveLayout } from "@/lib/layouts";
 
 const morning = { ...DEFAULT_LAYOUT, name: "Morning check" };
@@ -25,12 +25,28 @@ describe("layoutsFrom", () => {
       },
     };
     const layouts = layoutsFrom(stored);
-    expect(Object.keys(layouts)).toEqual(["Earnings week"]);
+    expect(Object.keys(layouts)).toEqual(["Earnings week", "Morning check", "Markets"]);
     expect(layouts["Earnings week"].panels[0].type).toBe("placeholder");
   });
 
-  it("starts from the default layout when nothing is stored", () => {
-    expect(layoutsFrom(null)).toEqual({ [DEFAULT_LAYOUT.name]: DEFAULT_LAYOUT });
+  it("starts from the built-in layouts when nothing is stored", () => {
+    expect(layoutsFrom(null)).toEqual({
+      [DEFAULT_LAYOUT.name]: DEFAULT_LAYOUT,
+      [MARKETS_LAYOUT.name]: MARKETS_LAYOUT,
+    });
+  });
+
+  it("offers every built-in the document does not have by name; a saved one of that name wins", () => {
+    const mine = { ...earnings, name: "Markets" };
+    const layouts = layoutsFrom({ Markets: mine });
+    expect(Object.keys(layouts)).toEqual(["Markets", "Morning check"]);
+    expect(layouts.Markets.panels.map((p) => p.type)).toEqual(["watchlist", "screen"]);
+  });
+
+  it("opens a built-in by its name, and still the default for a name nobody has", () => {
+    const layouts = layoutsFrom(null);
+    expect(resolveLayout(layouts, "Markets")).toBe(MARKETS_LAYOUT);
+    expect(resolveLayout(layouts, "made-up")).toBe(DEFAULT_LAYOUT);
   });
 });
 

@@ -237,6 +237,7 @@ describe("the heatmap panel", () => {
           quotes: [],
           screen: { rows: ROWS, fetchedAt: 0 },
           bars: null,
+          sentiment: null,
           notes: {},
           selected: "NVDA.US",
         },
@@ -262,7 +263,14 @@ describe("the heatmap panel", () => {
     const html = renderToString(
       createElement(HeatmapPanel.Component, {
         config,
-        data: { quotes: [], screen: { rows: [], fetchedAt: 0 }, bars: null, notes: {}, selected: null },
+        data: {
+          quotes: [],
+          screen: { rows: [], fetchedAt: 0 },
+          bars: null,
+          sentiment: null,
+          notes: {},
+          selected: null,
+        },
         onSelect: () => {},
         onConfigChange: () => {},
       }),

@@ -1,0 +1,510 @@
+{
+  "AAPL.US": [
+    {
+      "date": "2026-11-13",
+      "count": 55,
+      "normalized": 0.8246
+    },
+    {
+      "date": "2026-11-12",
+      "count": 72,
+      "normalized": 0.7357
+    },
+    {
+      "date": "2026-11-11",
+      "count": 39,
+      "normalized": 0.9526
+    },
+    {
+      "date": "2026-11-10",
+      "count": 59,
+      "normalized": 0.9205
+    },
+    {
+      "date": "2026-11-09",
+      "count": 55,
+      "normalized": 0.9025
+    },
+    {
+      "date": "2026-11-08",
+      "count": 14,
+      "normalized": 0.4716
+    },
+    {
+      "date": "2026-11-07",
+      "count": 13,
+      "normalized": 0.9144
+    },
+    {
+      "date": "2026-11-06",
+      "count": 49,
+      "normalized": 0.71
+    },
+    {
+      "date": "2026-11-05",
+      "count": 70,
+      "normalized": 0.6738
+    },
+    {
+      "date": "2026-11-04",
+      "count": 80,
+      "normalized": 0.7593
+    },
+    {
+      "date": "2026-11-03",
+      "count": 119,
+      "normalized": 0.5413
+    },
+    {
+      "date": "2026-11-02",
+      "count": 135,
+      "normalized": 0.5441
+    },
+    {
+      "date": "2026-11-01",
+      "count": 13,
+      "normalized": 0.1799
+    },
+    {
+      "date": "2026-10-31",
+      "count": 11,
+      "normalized": 0.9013
+    },
+    {
+      "date": "2026-10-30",
+      "count": 31,
+      "normalized": 0.5142
+    },
+    {
+      "date": "2026-10-29",
+      "count": 11,
+      "normalized": 0.6889
+    },
+    {
+      "date": "2026-10-28",
+      "count": 31,
+      "normalized": 0.6837
+    },
+    {
+      "date": "2026-10-27",
+      "count": 30,
+      "normalized": 0.7335
+    },
+    {
+      "date": "2026-10-26",
+      "count": 26,
+      "normalized": 0.7015
+    },
+    {
+      "date": "2026-10-25",
+      "count": 3,
+      "normalized": 0.9753
+    },
+    {
+      "date": "2026-10-24",
+      "count": 4,
+      "normalized": 0.817
+    },
+    {
+      "date": "2026-10-23",
+      "count": 26,
+      "normalized": 0.6823
+    },
+    {
+      "date": "2026-10-22",
+      "count": 23,
+      "normalized": 0.6066
+    },
+    {
+      "date": "2026-10-21",
+      "count": 14,
+      "normalized": 0.5371
+    },
+    {
+      "date": "2026-10-20",
+      "count": 31,
+      "normalized": 0.7165
+    },
+    {
+      "date": "2026-10-19",
+      "count": 32,
+      "normalized": 0.7534
+    },
+    {
+      "date": "2026-10-18",
+      "count": 6,
+      "normalized": 0.3587
+    },
+    {
+      "date": "2026-10-17",
+      "count": 9,
+      "normalized": 0.7819
+    },
+    {
+      "date": "2026-10-16",
+      "count": 38,
+      "normalized": 0.5603
+    },
+    {
+      "date": "2026-10-15",
+      "count": 34,
+      "normalized": 0.7314
+    },
+    {
+      "date": "2026-10-14",
+      "count": 21,
+      "normalized": 0.8247
+    }
+  ],
+  "MSFT.US": [
+    {
+      "date": "2026-11-13",
+      "count": 94,
+      "normalized": 0.6737
+    },
+    {
+      "date": "2026-11-12",
+      "count": 96,
+      "normalized": 0.7928
+    },
+    {
+      "date": "2026-11-11",
+      "count": 80,
+      "normalized": 0.8069
+    },
+    {
+      "date": "2026-11-10",
+      "count": 103,
+      "normalized": 0.7517
+    },
+    {
+      "date": "2026-11-09",
+      "count": 52,
+      "normalized": 0.7931
+    },
+    {
+      "date": "2026-11-08",
+      "count": 19,
+      "normalized": 0.6321
+    },
+    {
+      "date": "2026-11-07",
+      "count": 4,
+      "normalized": 0.9418
+    },
+    {
+      "date": "2026-11-06",
+      "count": 58,
+      "normalized": 0.6439
+    },
+    {
+      "date": "2026-11-05",
+      "count": 63,
+      "normalized": 0.6961
+    },
+    {
+      "date": "2026-11-04",
+      "count": 76,
+      "normalized": 0.7596
+    },
+    {
+      "date": "2026-11-03",
+      "count": 77,
+      "normalized": 0.8272
+    },
+    {
+      "date": "2026-11-02",
+      "count": 84,
+      "normalized": 0.7969
+    },
+    {
+      "date": "2026-11-01",
+      "count": 12,
+      "normalized": 0.9823
+    },
+    {
+      "date": "2026-10-31",
+      "count": 15,
+      "normalized": 0.9105
+    },
+    {
+      "date": "2026-10-30",
+      "count": 54,
+      "normalized": 0.6065
+    },
+    {
+      "date": "2026-10-29",
+      "count": 90,
+      "normalized": 0.6775
+    },
+    {
+      "date": "2026-10-28",
+      "count": 115,
+      "normalized": 0.649
+    },
+    {
+      "date": "2026-10-27",
+      "count": 75,
+      "normalized": 0.8269
+    },
+    {
+      "date": "2026-10-26",
+      "count": 88,
+      "normalized": 0.6587
+    },
+    {
+      "date": "2026-10-25",
+      "count": 20,
+      "normalized": 0.5661
+    },
+    {
+      "date": "2026-10-24",
+      "count": 9,
+      "normalized": 0.7656
+    },
+    {
+      "date": "2026-10-23",
+      "count": 39,
+      "normalized": 0.4454
+    },
+    {
+      "date": "2026-10-22",
+      "count": 31,
+      "normalized": 0.8138
+    },
+    {
+      "date": "2026-10-21",
+      "count": 35,
+      "normalized": 0.7321
+    },
+    {
+      "date": "2026-10-20",
+      "count": 40,
+      "normalized": 0.7469
+    },
+    {
+      "date": "2026-10-19",
+      "count": 40,
+      "normalized": 0.7461
+    },
+    {
+      "date": "2026-10-18",
+      "count": 9,
+      "normalized": 0.3214
+    },
+    {
+      "date": "2026-10-17",
+      "count": 6,
+      "normalized": 0.974
+    },
+    {
+      "date": "2026-10-16",
+      "count": 31,
+      "normalized": 0.7208
+    },
+    {
+      "date": "2026-10-15",
+      "count": 31,
+      "normalized": 0.7956
+    },
+    {
+      "date": "2026-10-14",
+      "count": 36,
+      "normalized": 0.814
+    }
+  ],
+  "NVDA.US": [
+    {
+      "date": "2026-11-13",
+      "count": 204,
+      "normalized": 0.5956
+    },
+    {
+      "date": "2026-11-12",
+      "count": 326,
+      "normalized": 0.4966
+    },
+    {
+      "date": "2026-11-11",
+      "count": 173,
+      "normalized": 0.6156
+    },
+    {
+      "date": "2026-11-10",
+      "count": 193,
+      "normalized": 0.6865
+    },
+    {
+      "date": "2026-11-09",
+      "count": 198,
+      "normalized": 0.5626
+    },
+    {
+      "date": "2026-11-08",
+      "count": 25,
+      "normalized": 0.4041
+    },
+    {
+      "date": "2026-11-07",
+      "count": 14,
+      "normalized": 0.7751
+    },
+    {
+      "date": "2026-11-06",
+      "count": 132,
+      "normalized": 0.5215
+    },
+    {
+      "date": "2026-11-05",
+      "count": 113,
+      "normalized": 0.6679
+    },
+    {
+      "date": "2026-11-04",
+      "count": 104,
+      "normalized": 0.8444
+    },
+    {
+      "date": "2026-11-03",
+      "count": 116,
+      "normalized": 0.7792
+    },
+    {
+      "date": "2026-11-02",
+      "count": 103,
+      "normalized": 0.7526
+    },
+    {
+      "date": "2026-11-01",
+      "count": 13,
+      "normalized": 0.4636
+    },
+    {
+      "date": "2026-10-31",
+      "count": 14,
+      "normalized": 0.9789
+    },
+    {
+      "date": "2026-10-30",
+      "count": 53,
+      "normalized": 0.5216
+    },
+    {
+      "date": "2026-10-29",
+      "count": 47,
+      "normalized": 0.7102
+    },
+    {
+      "date": "2026-10-28",
+      "count": 84,
+      "normalized": 0.8298
+    },
+    {
+      "date": "2026-10-27",
+      "count": 88,
+      "normalized": 0.7707
+    },
+    {
+      "date": "2026-10-26",
+      "count": 77,
+      "normalized": 0.6638
+    },
+    {
+      "date": "2026-10-25",
+      "count": 12,
+      "normalized": 0.8151
+    },
+    {
+      "date": "2026-10-24",
+      "count": 15,
+      "normalized": 0.9423
+    },
+    {
+      "date": "2026-10-23",
+      "count": 59,
+      "normalized": 0.6792
+    },
+    {
+      "date": "2026-10-22",
+      "count": 90,
+      "normalized": 0.7097
+    },
+    {
+      "date": "2026-10-21",
+      "count": 167,
+      "normalized": 0.8455
+    },
+    {
+      "date": "2026-10-20",
+      "count": 71,
+      "normalized": 0.7295
+    },
+    {
+      "date": "2026-10-19",
+      "count": 112,
+      "normalized": 0.6677
+    },
+    {
+      "date": "2026-10-18",
+      "count": 17,
+      "normalized": 0.6628
+    },
+    {
+      "date": "2026-10-17",
+      "count": 17,
+      "normalized": 0.7071
+    },
+    {
+      "date": "2026-10-16",
+      "count": 76,
+      "normalized": 0.64
+    },
+    {
+      "date": "2026-10-15",
+      "count": 109,
+      "normalized": 0.5561
+    },
+    {
+      "date": "2026-10-14",
+      "count": 88,
+      "normalized": 0.6809
+    }
+  ],
+  "VOD.LSE": [
+    {
+      "date": "2026-11-11",
+      "count": 1,
+      "normalized": 0.993
+    },
+    {
+      "date": "2026-11-08",
+      "count": 2,
+      "normalized": 0.971
+    },
+    {
+      "date": "2026-10-30",
+      "count": 1,
+      "normalized": 0.871
+    },
+    {
+      "date": "2026-10-27",
+      "count": 1,
+      "normalized": 0.993
+    },
+    {
+      "date": "2026-10-23",
+      "count": 1,
+      "normalized": 0.947
+    },
+    {
+      "date": "2026-10-20",
+      "count": 1,
+      "normalized": 0.991
+    },
+    {
+      "date": "2026-10-19",
+      "count": 1,
+      "normalized": -0.599
+    }
+  ]
+}

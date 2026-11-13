@@ -6,6 +6,7 @@ import { LayoutSwitcher } from "@/components/LayoutSwitcher";
 import { PanelBoundary } from "@/components/PanelBoundary";
 import { PanelFrame } from "@/components/PanelFrame";
 import { BacktestPanel } from "@/components/panels/BacktestPanel";
+import { HeatmapPanel } from "@/components/panels/HeatmapPanel";
 import { QuotePanel } from "@/components/panels/QuotePanel";
 import { ScreenPanel } from "@/components/panels/ScreenPanel";
 import { WatchlistPanel } from "@/components/panels/WatchlistPanel";
@@ -86,6 +87,7 @@ const PANELS: Record<string, PanelDef<never>> = {
   screen: ScreenPanel as PanelDef<never>,
   backtest: BacktestPanel as PanelDef<never>,
   quote: QuotePanel as PanelDef<never>,
+  heatmap: HeatmapPanel as PanelDef<never>,
 };
 
 function defOf(panel: Panel): PanelDef<unknown> | null {

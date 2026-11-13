@@ -3,11 +3,12 @@ import { askWithinLimits, type Request } from "@/lib/budget";
 import { type Failure, failureFromStatus } from "@/lib/failure";
 import { toTriples } from "@/lib/filters";
 import type { ScreenConfig } from "@/lib/layout";
-import { type Needs, unionNeeds } from "@/lib/panels";
+import { type Needs, sentimentKey, unionNeeds } from "@/lib/panels";
 import type { Kind } from "@/lib/quota-policy";
 import { quotesRequest } from "@/lib/quote-request";
 import { type Row, toRows } from "@/lib/rows";
 import { PAGE_LIMIT, screenRequest, type ScreenRow, toScreenRows } from "@/lib/screen-query";
+import { parseSentiments, type SentimentDay } from "@/lib/sentiment";
 
 /**
  * The browser's fetchers: every market request from the dashboard goes to /api/proxy,
@@ -108,18 +109,48 @@ export async function eodViaProxy(symbol: string, kind: Kind = "auto"): Promise<
   return toBars(await getJson(req.path, req.params, kind));
 }
 
+/** News tone for every symbol in the key, "AAPL.US,MSFT.US", in one request: 5 calls each. */
+export const sentimentRequest = (key: string): Request => ({
+  path: "sentiments",
+  params: { s: key },
+});
+
+export async function sentimentViaProxy(
+  key: string,
+  kind: Kind = "auto",
+): Promise<Record<string, SentimentDay[]>> {
+  const req = sentimentRequest(key);
+  return parseSentiments(await getJson(req.path, req.params, kind));
+}
+
 /**
  * What one fetch for these needs asks for: the union of the symbols (with the rules'
- * symbols, which ride along so the rules are checked on every answer), and each screen and
- * daily history once. The container fetches from this, and the budget prices it.
+ * symbols, which ride along so the rules are checked on every answer), each screen and daily
+ * history once, and the news tone in one request. The container fetches from this, and the
+ * budget prices it.
  */
-export type FetchPlan = { symbols: string[]; screens: string[]; histories: string[] };
+export type FetchPlan = {
+  symbols: string[];
+  screens: string[];
+  histories: string[];
+  /** The one news-tone request, by its key ("AAPL.US,MSFT.US"), or "" for none. */
+  tone: string;
+};
 
-export function fetchPlan(needs: Needs[], ruleSymbols: string[] = []): FetchPlan {
+/**
+ * `tone` is the key of the news-tone request every open panel's rows are read from: the
+ * cockpit passes its union, so a plan for one panel asks, and is priced, for that union.
+ */
+export function fetchPlan(
+  needs: Needs[],
+  ruleSymbols: string[] = [],
+  tone = sentimentKey(needs),
+): FetchPlan {
   return {
     symbols: unionNeeds([...needs, { quotes: ruleSymbols }]),
     screens: [...new Set(needs.flatMap((n) => (n.screen ? [screenKey(n.screen)] : [])))],
     histories: [...new Set(needs.flatMap((n) => (n.eod ? [n.eod] : [])))],
+    tone: needs.some((n) => n.sentiment?.length) ? tone : "",
   };
 }
 
@@ -129,6 +160,7 @@ export function without(plan: FetchPlan, other: FetchPlan): FetchPlan {
     symbols: plan.symbols.filter((s) => !other.symbols.includes(s)),
     screens: plan.screens.filter((s) => !other.screens.includes(s)),
     histories: plan.histories.filter((s) => !other.histories.includes(s)),
+    tone: plan.tone === other.tone ? "" : plan.tone,
   };
 }
 
@@ -139,5 +171,6 @@ export function requestsOf(plan: FetchPlan): Request[] {
     ...(quotes ? [quotes] : []),
     ...plan.screens.map(screenRequestOf),
     ...plan.histories.map(eodRequest),
+    ...(plan.tone ? [sentimentRequest(plan.tone)] : []),
   ];
 }

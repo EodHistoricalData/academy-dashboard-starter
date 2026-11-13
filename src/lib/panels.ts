@@ -4,6 +4,7 @@ import type { ScreenConfig } from "@/lib/layout";
 import type { Fetched } from "@/lib/market-store";
 import type { Notes } from "@/lib/notes";
 import type { ScreenRow } from "@/lib/screen-query";
+import type { SentimentDay } from "@/lib/sentiment";
 
 /**
  * The contract every panel signs. Four rules, each because of a failure:
@@ -26,6 +27,8 @@ export type PanelData = {
   quotes: Fetched[];
   screen: { rows: ScreenRow[]; fetchedAt: number } | null;
   bars: { rows: Bar[]; fetchedAt: number } | null;
+  /** News tone for the panel's own symbols, by symbol; a symbol with no news is absent. */
+  sentiment: { bySymbol: Record<string, SentimentDay[]>; fetchedAt: number } | null;
   /** The watchlist's notes, as data like everything else. */
   notes: Notes;
   /** The selected symbol, so a panel can mark its row. Reporting a click is onSelect. */
@@ -35,8 +38,14 @@ export type PanelData = {
 /**
  * What a panel wants. Quotes are a list of symbols, so the container can union them across
  * panels; a screen and a daily history are whole requests, deduplicated by what they ask.
+ * News tone is a list of symbols too, unioned the same way: it is priced per symbol.
  */
-export type Needs = { quotes: string[]; screen?: ScreenConfig; eod?: string };
+export type Needs = {
+  quotes: string[];
+  screen?: ScreenConfig;
+  eod?: string;
+  sentiment?: string[];
+};
 
 export type PanelDef<C> = {
   parse(raw: unknown): C | null;
@@ -63,3 +72,19 @@ export function neededBy<P extends { collapsed: boolean }>(
 export const unionNeeds = (needs: { quotes: string[] }[]) => [
   ...new Set(needs.flatMap((n) => n.quotes)),
 ];
+
+/**
+ * Every symbol the panels show, whether as a quote or as news tone: the symbols the address
+ * may select.
+ */
+export const symbolsOf = (needs: Needs[]) => [
+  ...new Set(needs.flatMap((n) => [...n.quotes, ...(n.sentiment ?? [])])),
+];
+
+/**
+ * The one news-tone request for every panel, by the symbols it asks for: the union, sorted,
+ * so the same panels in another order are the same request and the same cache entry.
+ * Empty when no panel wants any.
+ */
+export const sentimentKey = (needs: Needs[]) =>
+  [...new Set(needs.flatMap((n) => n.sentiment ?? []))].sort().join(",");

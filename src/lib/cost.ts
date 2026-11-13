@@ -28,6 +28,8 @@ export const CALL_COST: Readonly<Record<string, number>> = {
   screener: 5,
   // Five calls PER TICKER in `s`: news for two tickers in one request is ten calls.
   news: 5,
+  // Five calls PER SYMBOL in `s`, measured on 2026-11-13: one symbol 5, two symbols 10.
+  sentiments: 5,
   technical: 5,
   intraday: 5,
 
@@ -37,7 +39,7 @@ export const CALL_COST: Readonly<Record<string, number>> = {
 };
 
 /** Endpoints that charge their price once for every symbol in the request. */
-const PER_SYMBOL = new Set(["real-time", "news"]);
+const PER_SYMBOL = new Set(["real-time", "news", "sentiments"]);
 
 /**
  * How many calls one request to `path` with these query parameters will spend, or null

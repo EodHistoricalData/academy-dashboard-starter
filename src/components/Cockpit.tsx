@@ -9,6 +9,7 @@ import { BacktestPanel } from "@/components/panels/BacktestPanel";
 import { HeatmapPanel } from "@/components/panels/HeatmapPanel";
 import { QuotePanel } from "@/components/panels/QuotePanel";
 import { ScreenPanel } from "@/components/panels/ScreenPanel";
+import { SentimentPanel } from "@/components/panels/SentimentPanel";
 import { WatchlistPanel } from "@/components/panels/WatchlistPanel";
 import { toTicker } from "@/lib/added";
 import { ageSeconds, describeAge } from "@/lib/age";
@@ -42,7 +43,14 @@ import {
 } from "@/lib/market-store";
 import type { Notes } from "@/lib/notes";
 import { panelState } from "@/lib/panel-state";
-import { type Needs, neededBy, type PanelData, type PanelDef, unionNeeds } from "@/lib/panels";
+import {
+  type Needs,
+  neededBy,
+  type PanelData,
+  type PanelDef,
+  sentimentKey,
+  symbolsOf,
+} from "@/lib/panels";
 import { type Checked, checkAll, digest, nextRules } from "@/lib/check-all";
 import { isAvailable } from "@/lib/rows";
 import { type Rule, ruleSentence } from "@/lib/rules";
@@ -55,9 +63,11 @@ import {
   requestsOf,
   screenKey,
   screenViaProxy,
+  sentimentViaProxy,
   without,
 } from "@/lib/proxy-fetch";
 import type { ScreenRow } from "@/lib/screen-query";
+import type { SentimentDay } from "@/lib/sentiment";
 import {
   fromAddress,
   nextSelection,
@@ -88,6 +98,7 @@ const PANELS: Record<string, PanelDef<never>> = {
   backtest: BacktestPanel as PanelDef<never>,
   quote: QuotePanel as PanelDef<never>,
   heatmap: HeatmapPanel as PanelDef<never>,
+  sentiment: SentimentPanel as PanelDef<never>,
 };
 
 function defOf(panel: Panel): PanelDef<unknown> | null {
@@ -104,12 +115,16 @@ function effectiveConfig(panel: Panel, selection: Selection): unknown {
   return symbol === panel.config.symbol ? panel.config : { ...panel.config, symbol };
 }
 
-/** The requests a panel's needs come to, by the key the container tracks them under. */
-function keysOf(needs: Needs): string[] {
+/**
+ * The requests a panel's needs come to, by the key the container tracks them under. News
+ * tone is one request for every panel's symbols, so a panel's is the union's key.
+ */
+function keysOf(needs: Needs, sentiment: string): string[] {
   return [
     ...(needs.quotes.length > 0 ? ["quotes"] : []),
     ...(needs.screen ? [`screen:${screenKey(needs.screen)}`] : []),
     ...(needs.eod ? [`eod:${needs.eod}`] : []),
+    ...(needs.sentiment?.length ? [`sentiment:${sentiment}`] : []),
   ];
 }
 
@@ -117,9 +132,15 @@ type Loaded = {
   quotes: Map<string, Fetched>;
   screens: Map<string, { value: ScreenRow[]; fetchedAt: number }>;
   bars: Map<string, { value: Bar[]; fetchedAt: number }>;
+  sentiment: Map<string, { value: Record<string, SentimentDay[]>; fetchedAt: number }>;
 };
 
-const EMPTY: Loaded = { quotes: new Map(), screens: new Map(), bars: new Map() };
+const EMPTY: Loaded = {
+  quotes: new Map(),
+  screens: new Map(),
+  bars: new Map(),
+  sentiment: new Map(),
+};
 
 /** Today's count and limit from /api/usage, which costs nothing. */
 type Usage = { used: number | null; limit: number | null; mock: boolean };
@@ -129,7 +150,11 @@ function openPart(needs: Needs, now: number): Needs | null {
   const quotes = needs.quotes.filter((s) => marketOpen(s, now));
   const screen = needs.screen && marketOpen("SCREEN.US", now) ? needs.screen : undefined; // the screen is of US stocks
   const eod = needs.eod && marketOpen(needs.eod, now) ? needs.eod : undefined;
-  return quotes.length > 0 || screen || eod ? { quotes, screen, eod } : null;
+  // News is published whatever the market's hours: the tone is asked for as it falls due.
+  const sentiment = needs.sentiment?.length ? needs.sentiment : undefined;
+  return quotes.length > 0 || screen || eod || sentiment
+    ? { quotes, screen, eod, sentiment }
+    : null;
 }
 
 /**
@@ -180,6 +205,8 @@ export function Cockpit({
     quotes: createMarketStore(quotesViaProxy, Date.now, 60_000),
     screens: createRequestCache(screenViaProxy, Date.now, 5 * 60_000),
     bars: createRequestCache(eodViaProxy, Date.now, 60 * 60_000),
+    // News tone is read by the day and priced per symbol: kept an hour.
+    sentiment: createRequestCache(sentimentViaProxy, Date.now, 60 * 60_000),
   }));
   const [loaded, setLoaded] = useState<Loaded>(EMPTY);
   // What is being fetched, and what last failed, by request key ("quotes", "screen:…").
@@ -210,11 +237,15 @@ export function Cockpit({
     [layout, needsByPanel],
   );
 
+  // Every open panel's news-tone symbols, as one request: "AAPL.US,MSFT.US", or "" for
+  // none. A collapsed sentiment panel is not in it, so it costs nothing.
+  const sentiment = useMemo(() => sentimentKey(openNeeds), [openNeeds]);
+
   // Every symbol on the page: the only ones the address may select.
   const showing = useMemo(
     () => [
       ...new Set([
-        ...unionNeeds(openNeeds),
+        ...symbolsOf(openNeeds),
         ...[...loaded.screens.values()].flatMap((s) => s.value.map(toTicker)),
       ]),
     ],
@@ -279,8 +310,10 @@ export function Cockpit({
    */
   const fetchFor = useCallback(
     async (needs: Needs[], force: boolean, ruleSymbols: string[]) => {
-      // The same plan the budget prices: see requestsOf in src/lib/proxy-fetch.ts.
-      const { symbols, screens, histories } = fetchPlan(needs, ruleSymbols);
+      // The same plan the budget prices: see requestsOf in src/lib/proxy-fetch.ts. Its news
+      // tone is every open panel's, even when one panel is retried: that is the request its
+      // rows are read from, and asking for its own symbols alone would pay for them twice.
+      const { symbols, screens, histories, tone } = fetchPlan(needs, ruleSymbols, sentiment);
 
       const settle = async <T,>(key: string, job: () => Promise<T>, apply: (value: T) => void) => {
         setFetching((prev) => new Set(prev).add(key));
@@ -322,9 +355,13 @@ export function Cockpit({
             setLoaded((l) => ({ ...l, bars: new Map(l.bars).set(s, v) })),
           ),
         ),
+        tone !== "" &&
+          settle(`sentiment:${tone}`, () => stores.sentiment.get(tone, force), (v) =>
+            setLoaded((l) => ({ ...l, sentiment: new Map(l.sentiment).set(tone, v) })),
+          ),
       ]);
     },
-    [stores, runChecks],
+    [stores, runChecks, sentiment],
   );
 
   // What the page shows and has never asked for: the first load, a symbol just selected, a
@@ -347,8 +384,12 @@ export function Cockpit({
             ? n.screen
             : undefined,
         eod: n.eod && !loaded.bars.has(n.eod) && ask(`eod:${n.eod}`) ? n.eod : undefined,
+        sentiment:
+          n.sentiment?.length && !loaded.sentiment.has(sentiment) && ask(`sentiment:${sentiment}`)
+            ? n.sentiment
+            : undefined,
       };
-      return part.quotes.length > 0 || part.screen || part.eod ? [part] : [];
+      return part.quotes.length > 0 || part.screen || part.eod || part.sentiment ? [part] : [];
     });
     const rulesMissing = rulesNow.current.flatMap((r) =>
       r.enabled && !loaded.quotes.has(r.ticker) && ask(`quote:${r.ticker}`) ? [r.ticker] : [],
@@ -357,7 +398,7 @@ export function Cockpit({
     // Started after this render, so the effect itself sets no state. A request already in
     // flight for the same symbols is shared by the store, not sent twice.
     void Promise.resolve().then(() => fetchFor(missing, false, rulesMissing));
-  }, [openNeeds, loaded, fetchFor]);
+  }, [openNeeds, loaded, fetchFor, sentiment]);
 
   // Calls used today and the limit, read again after every round: the meter is the truth,
   // and other tabs spend from the same allowance.
@@ -374,12 +415,12 @@ export function Cockpit({
 
   // The price of a refresh by hand: every open panel, forced, with the rules' symbols.
   const ruleSymbols = useMemo(() => rules.filter((r) => r.enabled).map((r) => r.ticker), [rules]);
-  const handPrice = refreshCost(requestsOf(fetchPlan(openNeeds, ruleSymbols)));
+  const handPrice = refreshCost(requestsOf(fetchPlan(openNeeds, ruleSymbols, sentiment)));
 
   // The loop's schedule: one round per interval, each symbol priced in the fastest round
   // that asks for it. The rules' symbols ride with the fastest.
   const rounds = useMemo(() => {
-    let covered: FetchPlan = { symbols: [], screens: [], histories: [] };
+    let covered: FetchPlan = { symbols: [], screens: [], histories: [], tone: "" };
     return REFRESH.flatMap((refresh) => {
       const everyMs = REFRESH_EVERY_MS[refresh];
       if (everyMs === null) return [];
@@ -389,16 +430,17 @@ export function Cockpit({
       );
       if (needs.length === 0) return [];
       const first = covered.symbols.length + covered.screens.length + covered.histories.length === 0;
-      const plan = without(fetchPlan(needs, first ? ruleSymbols : []), covered);
+      const plan = without(fetchPlan(needs, first ? ruleSymbols : [], sentiment), covered);
       covered = {
         symbols: [...covered.symbols, ...plan.symbols],
         screens: [...covered.screens, ...plan.screens],
         histories: [...covered.histories, ...plan.histories],
+        tone: covered.tone || plan.tone,
       };
       const cost = refreshCost(requestsOf(plan));
       return cost === null ? [] : [{ refresh, cost, everyMs }];
     });
-  }, [layout, needsByPanel, ruleSymbols]);
+  }, [layout, needsByPanel, ruleSymbols, sentiment]);
 
   // The wall. A 402 means the day is spent: nothing more is sent until midnight UTC. Before
   // that, the meter decides: the loop keeps one refresh by hand in reserve, and a refresh by
@@ -432,7 +474,7 @@ export function Cockpit({
     });
     if (due.length === 0) return;
     const rulesOpen = ruleSymbols.filter((s) => marketOpen(s, at));
-    if (!allows(refreshCost(requestsOf(fetchPlan(due, rulesOpen))), false)) return;
+    if (!allows(refreshCost(requestsOf(fetchPlan(due, rulesOpen, sentiment))), false)) return;
     void fetchFor(due, false, rulesOpen).then(readUsage);
   };
 
@@ -562,10 +604,22 @@ export function Cockpit({
   function dataFor(needs: Needs): PanelData {
     const screen = needs.screen ? loaded.screens.get(screenKey(needs.screen)) : undefined;
     const bars = needs.eod ? loaded.bars.get(needs.eod) : undefined;
+    const tone = needs.sentiment ? loaded.sentiment.get(sentiment) : undefined;
     return {
       quotes: needs.quotes.flatMap((s) => loaded.quotes.get(s) ?? []),
       screen: screen ? { rows: screen.value, fetchedAt: screen.fetchedAt } : null,
       bars: bars ? { rows: bars.value, fetchedAt: bars.fetchedAt } : null,
+      // The panel's own symbols out of the union's answer.
+      sentiment: tone
+        ? {
+            bySymbol: Object.fromEntries(
+              (needs.sentiment ?? []).flatMap((s) =>
+                Object.hasOwn(tone.value, s) ? [[s, tone.value[s]]] : [],
+              ),
+            ),
+            fetchedAt: tone.fetchedAt,
+          }
+        : null,
       notes,
       selected: selection.symbol,
     };
@@ -577,6 +631,7 @@ export function Cockpit({
       ...needs.quotes.flatMap((s) => loaded.quotes.get(s)?.fetchedAt ?? []),
       ...(needs.screen ? [loaded.screens.get(screenKey(needs.screen))?.fetchedAt ?? null] : []),
       ...(needs.eod ? [loaded.bars.get(needs.eod)?.fetchedAt ?? null] : []),
+      ...(needs.sentiment?.length ? [loaded.sentiment.get(sentiment)?.fetchedAt ?? null] : []),
     ];
     if (times.length === 0 || times.includes(null)) return null;
     return Math.min(...(times as number[]));
@@ -586,6 +641,7 @@ export function Cockpit({
   function rowsOf(needs: Needs, data: PanelData): unknown[] | null {
     if (needs.screen) return data.screen?.rows ?? null;
     if (needs.eod) return data.bars?.rows ?? null;
+    if (needs.sentiment) return data.sentiment ? Object.values(data.sentiment.bySymbol) : null;
     return data.quotes.length === 0 && needs.quotes.length > 0 ? null : data.quotes;
   }
 
@@ -649,7 +705,7 @@ export function Cockpit({
               />
             );
           }
-          const keys = keysOf(needs);
+          const keys = keysOf(needs, sentiment);
           const data = dataFor(needs);
           const state = panelState({
             rows: rowsOf(needs, data),
@@ -681,7 +737,10 @@ export function Cockpit({
                   <div className="flex flex-col gap-3">
                     <Failed
                       failure={state.failure}
-                      canRetry={allows(refreshCost(requestsOf(fetchPlan([needs]))), true)}
+                      canRetry={allows(
+                        refreshCost(requestsOf(fetchPlan([needs], [], sentiment))),
+                        true,
+                      )}
                       onRetry={() => void fetchFor([needs], true, []).then(readUsage)}
                     />
                     {state.rows !== null && body}
@@ -762,6 +821,14 @@ function ageOf(needs: Needs, data: PanelData, now: number): Age | null {
   }
   if (needs.eod) {
     const date = data.bars?.rows.at(-1)?.date;
+    return date ? { kind: "daily", date } : null;
+  }
+  if (needs.sentiment) {
+    // Each symbol's days come newest first; the panel is as recent as its newest day.
+    const date = Object.values(data.sentiment?.bySymbol ?? {})
+      .map((days) => days[0]?.date ?? "")
+      .sort()
+      .at(-1);
     return date ? { kind: "daily", date } : null;
   }
   const oldest = oldestTimestamp(data.quotes.map((q) => q.row));

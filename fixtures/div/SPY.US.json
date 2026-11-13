@@ -1,0 +1,42 @@
+[
+  {
+    "date": "2025-12-19",
+    "declarationDate": "2025-10-03",
+    "recordDate": "2025-12-19",
+    "paymentDate": "2026-01-30",
+    "period": "Quarterly",
+    "value": 1.95008,
+    "unadjustedValue": 1.95008,
+    "currency": "USD"
+  },
+  {
+    "date": "2026-03-20",
+    "declarationDate": "2026-01-02",
+    "recordDate": "2026-03-20",
+    "paymentDate": "2026-04-30",
+    "period": "Quarterly",
+    "value": 1.74006,
+    "unadjustedValue": 1.74006,
+    "currency": "USD"
+  },
+  {
+    "date": "2026-06-18",
+    "declarationDate": "2026-01-02",
+    "recordDate": "2026-06-18",
+    "paymentDate": "2026-07-31",
+    "period": "Quarterly",
+    "value": 1.82,
+    "unadjustedValue": 1.82,
+    "currency": "USD"
+  },
+  {
+    "date": "2026-09-18",
+    "declarationDate": "2026-01-02",
+    "recordDate": "2026-09-18",
+    "paymentDate": "2026-10-30",
+    "period": "Quarterly",
+    "value": 1.88,
+    "unadjustedValue": 1.88,
+    "currency": "USD"
+  }
+]

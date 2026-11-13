@@ -9,6 +9,8 @@ the same code that reads the real thing.
 | `real-time.json` | `real-time/...` for the default watchlist. A ticker not in the file comes back with every field `"NA"`, the way EODHD answers for a symbol it has never seen traded. |
 | `eod/AAPL.US.json` | `eod/AAPL.US`, ten daily bars. `filter=last_close` gives the last close. |
 | `eod/SPY.US.json` | `eod/SPY.US`, one year of daily bars (2025-10-31 to 2026-10-30), the depth of the free plan, for the backtester. Four dividends are in `adjusted_close`. `from` and `to` are ignored. |
+| `div/SPY.US.json` | `div/SPY.US`, the four dividends already folded into the SPY bars' `adjusted_close`, in the shape /div returns (`unadjustedValue` is the cash paid; `value` is the same here, with no split since). |
+| `splits/SPY.US.json` | `splits/SPY.US`, an empty array: the invented year has no split. |
 | `fundamentals/AAPL.US.json` | `fundamentals/AAPL.US`, a few sections of the real document. `filter=General::Name` works. |
 | `user.json` | Your plan and today's count, for the meter on the page. |
 | `screener.json` | `screener`, twenty rows under `data` as the real endpoint wraps them. The same answer whatever the filters, sort or limit: the mock does not screen. |

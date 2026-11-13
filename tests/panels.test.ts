@@ -37,6 +37,7 @@ describe("the watchlist panel", () => {
           ],
           screen: null,
           bars: null,
+          sentiment: null,
           notes: { "AAPL.US": { note: "Bought at 291" } },
           selected: null,
         },

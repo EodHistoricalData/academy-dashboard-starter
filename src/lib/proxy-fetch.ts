@@ -5,6 +5,7 @@ import type { ScreenConfig } from "@/lib/layout";
 import { quotesRequest } from "@/lib/quote-request";
 import { type Row, toRows } from "@/lib/rows";
 import { PAGE_LIMIT, screenRequest, type ScreenRow, toScreenRows } from "@/lib/screen-query";
+import { parseSentiments, type SentimentDay } from "@/lib/sentiment";
 
 /**
  * The browser's fetchers: every market request from the dashboard goes to /api/proxy,
@@ -64,4 +65,9 @@ export async function screenViaProxy(key: string): Promise<ScreenRow[]> {
 
 export async function eodViaProxy(symbol: string): Promise<Bar[]> {
   return toBars(await getJson(`eod/${symbol}`));
+}
+
+/** News tone for every symbol in the key, "AAPL.US,MSFT.US", in one request: 5 calls each. */
+export async function sentimentViaProxy(key: string): Promise<Record<string, SentimentDay[]>> {
+  return parseSentiments(await getJson("sentiments", { s: key }));
 }

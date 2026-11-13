@@ -48,8 +48,9 @@ export function MockMode() {
       <h2 className="font-semibold">Mock mode</h2>
       <p className="mt-1 text-zinc-600 dark:text-zinc-400">
         <Code>EODHD_MOCK</Code> is on. Everything below comes from the files in{" "}
-        <Code>fixtures/</Code>: invented numbers in EODHD’s format, not market
-        data. No API calls are spent. Remove the variable and restart to go live.
+        <Code>fixtures/</Code>: invented numbers in EODHD’s format, and one recorded
+        news-tone answer from 13 November 2026. None of it is live. No API calls are
+        spent. Remove the variable and restart to go live.
       </p>
     </section>
   );

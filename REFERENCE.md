@@ -364,3 +364,11 @@ a choice to you, the section for that unit says which one we made. Yours can dif
   asks for the same screen as a screen panel with the same filters and sort, so the two
   are one request. A second built-in layout, Markets, is offered beside the saved ones;
   a saved layout of the same name wins.
+- The sentiment panel, `src/components/panels/SentimentPanel.tsx` and
+  `src/lib/sentiment.ts`: each symbol's article-weighted news tone on its own −1 to 1
+  scale, ranked, with its article count and trend. Recipe from
+  EodHistoricalData/eodhd-news-sentiment, `vendor/sentiment.js` (MIT). Our changes: under
+  20 articles is no reading, and there are no fear/greed bands, because on 2026-11-13 the
+  tone of twelve large symbols sat between 0.57 and 0.87, all in one band. `sentiments` is a new endpoint at 5 calls a symbol,
+  in the proxy's allowlist and `cost.ts`; every panel's symbols go out as one request,
+  kept an hour. The mock answers `[]` when no asked symbol has news, as the API does.

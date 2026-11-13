@@ -13,7 +13,14 @@ import { WATCHLIST } from "@/lib/watchlist";
  * fails is refused (never repaired), and a type this code does not know becomes a
  * placeholder that says so. One bad panel never takes down the cockpit.
  */
-export const PANEL_TYPES = ["watchlist", "screen", "backtest", "quote", "heatmap"] as const;
+export const PANEL_TYPES = [
+  "watchlist",
+  "screen",
+  "backtest",
+  "quote",
+  "heatmap",
+  "sentiment",
+] as const;
 export type PanelType = (typeof PANEL_TYPES)[number];
 
 export type Position = { x: number; y: number; w: number; h: number };
@@ -28,6 +35,7 @@ export type BacktestConfig = Params & { symbol: string; follows: boolean };
 export type QuoteConfig = { symbol: string; follows: boolean };
 /** A heatmap draws a screen: the same filters and sort, so the same request. */
 export type HeatmapConfig = ScreenConfig;
+export type SentimentConfig = { symbols: string[]; follows: boolean };
 
 type Base = { id: string; title: string; position: Position };
 export type Panel =
@@ -36,6 +44,7 @@ export type Panel =
   | (Base & { type: "backtest"; config: BacktestConfig })
   | (Base & { type: "quote"; config: QuoteConfig })
   | (Base & { type: "heatmap"; config: HeatmapConfig })
+  | (Base & { type: "sentiment"; config: SentimentConfig })
   /** A panel this code cannot draw: an unknown type, or a config that failed its check. */
   | (Base & { type: "placeholder"; config: { reason: string } });
 
@@ -94,14 +103,23 @@ export const MARKETS_LAYOUT: Layout = {
       type: "heatmap",
       title: "Big and profitable, by size",
       config: { filters: MY_FILTERS, sort: "market_capitalization.desc", follows: false },
-      position: { x: 0, y: 0, w: 3, h: 3 },
+      position: { x: 0, y: 0, w: 2, h: 2 },
     },
     {
       id: "quote",
       type: "quote",
       title: "Quote",
       config: { symbol: WATCHLIST[0], follows: true }, // shows the tile you click
-      position: { x: 3, y: 0, w: 1, h: 1 },
+      position: { x: 2, y: 0, w: 2, h: 1 },
+    },
+    {
+      id: "sentiment",
+      type: "sentiment",
+      title: "News tone",
+      // Pinned: a panel priced per symbol that followed the selection would spend 5 calls on
+      // every click.
+      config: { symbols: ["AAPL.US", "MSFT.US"], follows: false },
+      position: { x: 2, y: 1, w: 2, h: 1 },
     },
   ],
 };
@@ -155,6 +173,21 @@ export function parseBacktestConfig(raw: unknown): BacktestConfig | null {
   };
 }
 
+/** Five symbols at most: each one is 5 calls on every load. */
+const MAX_SENTIMENT_SYMBOLS = 5;
+
+export function parseSentimentConfig(raw: unknown): SentimentConfig | null {
+  const c = raw as { symbols?: unknown; follows?: unknown } | null;
+  return Array.isArray(c?.symbols) &&
+    c.symbols.length >= 1 &&
+    c.symbols.length <= MAX_SENTIMENT_SYMBOLS &&
+    c.symbols.every(isTicker) &&
+    new Set(c.symbols).size === c.symbols.length &&
+    typeof c.follows === "boolean"
+    ? { symbols: [...c.symbols], follows: c.follows }
+    : null;
+}
+
 export function parseQuoteConfig(raw: unknown): QuoteConfig | null {
   const c = raw as { symbol?: unknown; follows?: unknown } | null;
   return isTicker(c?.symbol) && typeof c.follows === "boolean"
@@ -168,6 +201,7 @@ const CHECK: Record<PanelType, (config: unknown) => object | null> = {
   backtest: parseBacktestConfig,
   quote: parseQuoteConfig,
   heatmap: parseScreenConfig, // a screen's config, checked as one
+  sentiment: parseSentimentConfig,
 };
 
 /**

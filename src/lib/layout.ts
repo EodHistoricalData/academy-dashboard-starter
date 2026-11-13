@@ -2,6 +2,7 @@ import { isTicker } from "@/lib/added";
 import { DEFAULTS as BACKTEST_DEFAULTS, type Params } from "@/lib/backtest/strategy";
 import { REFRESH, type Refresh } from "@/lib/budget";
 import { DEFAULT_SORT, type Filter, safe, safeSort, type Sort } from "@/lib/filters";
+import { parseTrades, type Trade } from "@/lib/portfolio";
 import { MY_FILTERS } from "@/lib/screen-query";
 import { WATCHLIST } from "@/lib/watchlist";
 
@@ -21,6 +22,7 @@ export const PANEL_TYPES = [
   "quote",
   "heatmap",
   "sentiment",
+  "portfolio",
 ] as const;
 export type PanelType = (typeof PANEL_TYPES)[number];
 
@@ -37,6 +39,8 @@ export type QuoteConfig = { symbol: string; follows: boolean };
 /** A heatmap draws a screen: the same filters and sort, so the same request. */
 export type HeatmapConfig = ScreenConfig;
 export type SentimentConfig = { symbols: string[]; follows: boolean };
+/** The trades live in the config, so they are saved with the layout. */
+export type PortfolioConfig = { trades: Trade[]; follows: boolean };
 
 /**
  * `collapsed`: only the title shows, and the panel asks for nothing. `refresh`: how often
@@ -56,6 +60,7 @@ export type Panel =
   | (Base & { type: "quote"; config: QuoteConfig })
   | (Base & { type: "heatmap"; config: HeatmapConfig })
   | (Base & { type: "sentiment"; config: SentimentConfig })
+  | (Base & { type: "portfolio"; config: PortfolioConfig })
   /** A panel this code cannot draw: an unknown type, or a config that failed its check. */
   | (Base & { type: "placeholder"; config: { reason: string } });
 
@@ -130,7 +135,9 @@ export const MARKETS_LAYOUT: Layout = {
       id: "quote",
       type: "quote",
       title: "Quote",
-      config: { symbol: WATCHLIST[0], follows: true }, // shows the tile you click
+      // Shows the tile you click. It starts on a symbol the portfolio holds, so its quote
+      // is in the request the portfolio already makes.
+      config: { symbol: "NVDA.US", follows: true },
       position: { x: 2, y: 0, w: 2, h: 1 },
       collapsed: false,
       refresh: "live",
@@ -145,6 +152,25 @@ export const MARKETS_LAYOUT: Layout = {
       position: { x: 2, y: 1, w: 2, h: 1 },
       collapsed: false,
       refresh: "daily",
+    },
+    {
+      id: "portfolio",
+      type: "portfolio",
+      title: "Portfolio",
+      // Examples on symbols the fixtures can price, so mock mode shows a working book.
+      config: {
+        trades: [
+          { id: "1", symbol: "AAPL.US", side: "buy", date: "2026-03-02", quantity: 20, price: 214.5, fees: 1 },
+          { id: "2", symbol: "MSFT.US", side: "buy", date: "2026-04-14", quantity: 5, price: 398.2, fees: 1 },
+          { id: "3", symbol: "NVDA.US", side: "buy", date: "2026-05-11", quantity: 40, price: 129.8, fees: 1 },
+          { id: "4", symbol: "AAPL.US", side: "buy", date: "2026-08-04", quantity: 10, price: 229.1, fees: 1 },
+          { id: "5", symbol: "NVDA.US", side: "sell", date: "2026-09-15", quantity: 15, price: 176.4, fees: 1 },
+        ],
+        follows: false,
+      },
+      position: { x: 0, y: 2, w: 4, h: 2 },
+      collapsed: false,
+      refresh: "live",
     },
   ],
 };
@@ -213,6 +239,14 @@ export function parseSentimentConfig(raw: unknown): SentimentConfig | null {
     : null;
 }
 
+export function parsePortfolioConfig(raw: unknown): PortfolioConfig | null {
+  const c = raw as { trades?: unknown; follows?: unknown } | null;
+  const trades = parseTrades(c?.trades); // refused whole, never one trade dropped
+  return trades !== null && typeof c?.follows === "boolean"
+    ? { trades, follows: c.follows }
+    : null;
+}
+
 export function parseQuoteConfig(raw: unknown): QuoteConfig | null {
   const c = raw as { symbol?: unknown; follows?: unknown } | null;
   return isTicker(c?.symbol) && typeof c.follows === "boolean"
@@ -232,6 +266,7 @@ const DEFAULT_REFRESH: Record<PanelType, Refresh> = {
   backtest: "manual",
   heatmap: "minutes", // the screen's own request, so the screen's interval
   sentiment: "daily", // a day's news tone, 5 calls a symbol: once a day
+  portfolio: "live", // quotes, like the watchlist
 };
 
 function refreshOf(type: PanelType, raw: unknown): Refresh | null {
@@ -247,6 +282,7 @@ const CHECK: Record<PanelType, (config: unknown) => object | null> = {
   quote: parseQuoteConfig,
   heatmap: parseScreenConfig, // a screen's config, checked as one
   sentiment: parseSentimentConfig,
+  portfolio: parsePortfolioConfig,
 };
 
 /**

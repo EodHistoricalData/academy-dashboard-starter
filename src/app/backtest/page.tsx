@@ -2,6 +2,8 @@ import { EquityChart } from "@/components/EquityChart";
 import { Nav } from "@/components/Nav";
 import { CallFailed, Code, MockMode, NoKey } from "@/components/Notices";
 import { WallMeter } from "@/components/WallMeter";
+import { type ActionsResult, loadActions } from "@/lib/backtest/actions";
+import { type AdjustmentProblem, auditAdjustments } from "@/lib/backtest/adjustment";
 import { buyAndHold } from "@/lib/backtest/baseline";
 import { type Bar, loadCandles } from "@/lib/backtest/candles";
 import {
@@ -51,6 +53,9 @@ export default async function BacktestPage({
     });
     tried = paramSetsTried(await readRuns(), SYMBOL);
   }
+  // The record the adjusted column is checked against, pulled with the history it checks.
+  const actions =
+    "bars" in candles ? await loadActions(SYMBOL, candles.pulledAt) : null;
 
   return (
     <div className="min-h-screen bg-zinc-50 px-6 py-10 font-sans text-zinc-900 dark:bg-zinc-950 dark:text-zinc-100 sm:py-14">
@@ -84,10 +89,11 @@ export default async function BacktestPage({
           </section>
         )}
 
-        {"bars" in candles && (
+        {"bars" in candles && actions && (
           <Results
             bars={candles.bars}
             pulledAt={candles.pulledAt}
+            actions={actions}
             params={params}
             tried={tried}
           />
@@ -96,9 +102,12 @@ export default async function BacktestPage({
         <div className="border-t border-zinc-200 pt-8 dark:border-zinc-800 sm:w-1/2">
           <WallMeter
             account={plan}
-            pageCalls={estimateCalls(`eod/${SYMBOL}`) ?? 0}
+            pageCalls={["eod", "div", "splits"].reduce(
+              (sum, endpoint) => sum + (estimateCalls(`${endpoint}/${SYMBOL}`) ?? 0),
+              0,
+            )}
             mock={mock}
-            basis="one /eod request for the whole history, then nothing until the cache is deleted"
+            basis="three requests, /eod, /div and /splits, for the whole history, then nothing until the cache is deleted"
           />
         </div>
       </main>
@@ -109,14 +118,20 @@ export default async function BacktestPage({
 function Results({
   bars,
   pulledAt,
+  actions,
   params,
   tried,
 }: {
   bars: Bar[];
   pulledAt: string;
+  actions: ActionsResult;
   params: Params;
   tried: number;
 }) {
+  const problems =
+    "failure" in actions
+      ? null
+      : auditAdjustments(bars, actions.dividends, actions.splits);
   const run = backtest(bars, params);
   // The control starts on the strategy's first bar, with the same costs and column: a
   // control that started earlier would hand the warm-up period to one side.
@@ -130,6 +145,8 @@ function Results({
 
   return (
     <section className="flex flex-col gap-8">
+      {problems && problems.length > 0 && <Mismatch problems={problems} />}
+
       <div className="flex flex-col gap-2 text-sm">
         <h2 className="text-xs font-medium uppercase tracking-wide text-zinc-500 dark:text-zinc-400">
           The rule
@@ -296,6 +313,14 @@ function Results({
       </p>
 
       <p className="text-xs text-zinc-500 dark:text-zinc-400">
+        {"failure" in actions
+          ? "The adjusted column was not checked: the dividends and splits could not be fetched, so nothing below vouches for it."
+          : problems && problems.length === 0
+            ? `Adjusted column checked against the record: ${countIn(bars, actions.dividends)} dividends and ${countIn(bars, actions.splits)} splits in this history, and the factor steps on those days and no others.`
+            : "Adjusted column checked against the record: it does not match, see the top of the page."}
+      </p>
+
+      <p className="text-xs text-zinc-500 dark:text-zinc-400">
         {bars.length} daily bars of <Code>adjusted_close</Code>, pulled{" "}
         {pulledAt.slice(0, 10)}. Change the rule in the address:{" "}
         <Code>{"?fast=20&slow=50&costBps=10&slippageBps=5&fill=next-open"}</Code>.
@@ -350,6 +375,45 @@ function Costs({ bars, params }: { bars: Bar[]; params: Params }) {
       </p>
     </div>
   );
+}
+
+/**
+ * The adjusted column moved on days the dividends and splits do not explain, or stood
+ * still on a day they do. Every number on the page is built on that column, so this goes
+ * first.
+ */
+function Mismatch({ problems }: { problems: AdjustmentProblem[] }) {
+  const step = (x: number) =>
+    Number.isFinite(x) ? `${((x - 1) * 100).toFixed(3)}%` : "no factor, a zero or missing close";
+  return (
+    <section className="rounded-lg border border-amber-300 bg-amber-50 p-4 text-sm dark:border-amber-900/60 dark:bg-amber-950/30">
+      <h2 className="font-semibold text-amber-900 dark:text-amber-200">
+        The adjusted column does not match the dividends and splits
+      </h2>
+      <p className="mt-1 text-amber-900 dark:text-amber-200">
+        On {problems.length} {problems.length === 1 ? "day" : "days"} the
+        adjustment factor moved by something other than what the record says.
+        Every result below is built on that column. The usual cause is a cached
+        history that was extended instead of pulled again: delete it from{" "}
+        <Code>.cache/eod</Code> and reload.
+      </p>
+      <ul className="mt-2 list-disc space-y-1 pl-5 tabular-nums text-amber-900 dark:text-amber-200">
+        {problems.slice(0, 5).map((p) => (
+          <li key={p.date}>
+            {p.date}: the record says {step(p.expected)}, the bars show{" "}
+            {step(p.found)}
+          </li>
+        ))}
+      </ul>
+    </section>
+  );
+}
+
+/** Events inside the history: after its first bar, up to its last. */
+function countIn(bars: Bar[], events: { date: string }[]): number {
+  const first = bars[0]?.date ?? "";
+  const last = bars[bars.length - 1]?.date ?? "";
+  return events.filter((e) => e.date > first && e.date <= last).length;
 }
 
 /** The null test, shown once: the same moves in a random order (seed 42). */

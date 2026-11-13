@@ -238,3 +238,21 @@ a choice to you, the section for that unit says which one we made. Yours can dif
 - Survivorship: the backtest runs on SPY alone and says so on the page and in `PLAN.md`,
   with the course's live and delisted counts. Counting the delisted list yourself is one
   request through the proxy; nothing in the tool needs it.
+- Built twice: `src/lib/backtest/twin.ts` computes the same curves without the state
+  machine, by cutting each day into a night and a day and asking whether a unit was held
+  through each. It shares the signal with `strategy.ts` and nothing else.
+  `tests/twin.test.ts` holds the two to a billionth on every bar, on four runs (defaults,
+  costs off, fills at the signal's close, a fast pair), checks that those runs trade and
+  that one still holds at the end, and puts a four-for-one split into the fixture while the
+  default run is holding: both curves stay where they were, and only the printed fill
+  prices before the split change.
+- The adjusted column audited: `src/lib/backtest/adjustment.ts` checks that the factor
+  `adjusted_close / close` steps on the record's ex-dividend and split days, by the amount
+  the record says, and on no other day. Dividends are read from `unadjustedValue`, the cash
+  paid, not `value`. `src/lib/backtest/actions.ts` fetches `/div` and `/splits` once per
+  pull of the history and caches them beside it, tied to its `pulledAt`; the page prints
+  the check under the results and moves a mismatch to the top. Mock mode reads
+  `fixtures/div/SPY.US.json` (the four dividends already in the bars) and
+  `fixtures/splits/SPY.US.json` (none). `tests/adjustment.test.ts` uses Apple's 2020
+  dividend and split as /eod, /div and /splits gave them on 2026-11-13, and joins the
+  returns lesson's older pull to the newer one to show the step nobody paid.

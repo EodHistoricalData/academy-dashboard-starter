@@ -7,6 +7,7 @@ import { PanelBoundary } from "@/components/PanelBoundary";
 import { PanelFrame } from "@/components/PanelFrame";
 import { BacktestPanel } from "@/components/panels/BacktestPanel";
 import { HeatmapPanel } from "@/components/panels/HeatmapPanel";
+import { PortfolioPanel } from "@/components/panels/PortfolioPanel";
 import { QuotePanel } from "@/components/panels/QuotePanel";
 import { ScreenPanel } from "@/components/panels/ScreenPanel";
 import { SentimentPanel } from "@/components/panels/SentimentPanel";
@@ -34,6 +35,7 @@ import {
   resolveLayout,
   type SavedLayouts,
   viewQuery,
+  withPanelConfig,
 } from "@/lib/layouts";
 import {
   createMarketStore,
@@ -99,6 +101,7 @@ const PANELS: Record<string, PanelDef<never>> = {
   quote: QuotePanel as PanelDef<never>,
   heatmap: HeatmapPanel as PanelDef<never>,
   sentiment: SentimentPanel as PanelDef<never>,
+  portfolio: PortfolioPanel as PanelDef<never>,
 };
 
 function defOf(panel: Panel): PanelDef<unknown> | null {
@@ -582,6 +585,14 @@ export function Cockpit({
     });
   }
 
+  // A panel's new settings, checked by its own type's check like any config, then saved
+  // with the layout. Settings that fail the check are ignored, never repaired.
+  function changeConfig(panel: Panel, def: PanelDef<unknown>, next: unknown) {
+    const config = def.parse(next);
+    if (config === null) return;
+    saveLayouts({ ...layouts, [layout.name]: withPanelConfig(layout, panel, config) });
+  }
+
   function newLayout(newName: string) {
     const copy = { ...layout, name: newName };
     saveLayouts({ ...layouts, [newName]: copy });
@@ -718,7 +729,7 @@ export function Cockpit({
               config={effectiveConfig(panel, selection) as never}
               data={data}
               onSelect={(symbol) => select(symbol, panel.id)}
-              onConfigChange={() => {}}
+              onConfigChange={(next) => changeConfig(panel, def, next)}
             />
           );
           return (

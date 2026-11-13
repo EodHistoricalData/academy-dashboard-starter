@@ -34,6 +34,7 @@ export function DataTable<T>({
   empty,
   onRowClick,
   selectedKey,
+  footer,
 }: {
   columns: Column<T>[];
   rows: T[];
@@ -46,6 +47,8 @@ export function DataTable<T>({
   caption: string;
   /** Why there is nothing to show, in a sentence. */
   empty: ReactNode;
+  /** A row under the others through the same columns, never picked: a portfolio's totals. */
+  footer?: T;
 }) {
   if (rows.length === 0) {
     return <p className="text-sm text-zinc-600 dark:text-zinc-400">{empty}</p>;
@@ -106,6 +109,24 @@ export function DataTable<T>({
             </tr>
           ))}
         </tbody>
+        {footer !== undefined && (
+          <tfoot>
+            <tr className="border-t border-zinc-300 font-medium dark:border-zinc-700">
+              {columns.map((c, i) => {
+                const className = `px-3 py-2.5 first:pl-0 last:pr-0 ${alignOf(c)} ${toneOf(c, footer, i)}`;
+                return i === 0 ? (
+                  <th key={c.key} scope="row" className={className}>
+                    {cell(c.render(footer))}
+                  </th>
+                ) : (
+                  <td key={c.key} className={className}>
+                    {cell(c.render(footer))}
+                  </td>
+                );
+              })}
+            </tr>
+          </tfoot>
+        )}
       </table>
     </div>
   );

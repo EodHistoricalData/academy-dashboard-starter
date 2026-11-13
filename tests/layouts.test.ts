@@ -1,7 +1,7 @@
 import { describe, expect, it } from "vitest";
 import { putDocViaRoute } from "@/lib/doc-client";
-import { DEFAULT_LAYOUT, MARKETS_LAYOUT } from "@/lib/layout";
-import { exportLayout, layoutsFrom, resolveLayout } from "@/lib/layouts";
+import { DEFAULT_LAYOUT, MARKETS_LAYOUT, parseLayout } from "@/lib/layout";
+import { exportLayout, layoutsFrom, resolveLayout, withPanelConfig } from "@/lib/layouts";
 
 const morning = { ...DEFAULT_LAYOUT, name: "Morning check" };
 const earnings = { ...DEFAULT_LAYOUT, name: "Earnings week", panels: DEFAULT_LAYOUT.panels.slice(0, 2) };
@@ -47,6 +47,26 @@ describe("layoutsFrom", () => {
     const layouts = layoutsFrom(null);
     expect(resolveLayout(layouts, "Markets")).toBe(MARKETS_LAYOUT);
     expect(resolveLayout(layouts, "made-up")).toBe(DEFAULT_LAYOUT);
+  });
+});
+
+describe("withPanelConfig", () => {
+  it("changes the one panel it was given, even when another has the same id", () => {
+    const at = { x: 0, y: 0, w: 2, h: 1 };
+    const layout = parseLayout({
+      name: "Twins",
+      version: 2,
+      panels: [
+        { id: "same", type: "portfolio", title: "P", config: { trades: [], follows: false }, position: at },
+        { id: "same", type: "watchlist", title: "W", config: { symbols: ["AAPL.US"], follows: false }, position: at },
+      ],
+    });
+    const trade = { id: "1", symbol: "AAPL.US", side: "buy", date: "2026-01-05", quantity: 1, price: 100, fees: 0 };
+    const next = withPanelConfig(layout, layout.panels[0], { trades: [trade], follows: false });
+    expect(next.panels[0].config).toEqual({ trades: [trade], follows: false });
+    expect(next.panels[1]).toBe(layout.panels[1]);
+    // Read back, both still pass their own type's check.
+    expect(parseLayout(next).panels.map((p) => p.type)).toEqual(["portfolio", "watchlist"]);
   });
 });
 

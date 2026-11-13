@@ -357,3 +357,10 @@ a choice to you, the section for that unit says which one we made. Yours can dif
   its own kind, with EODHD's plain-text reason), `src/components/PanelBoundary.tsx`.
   Refreshing keeps the rows with a marker; a failure keeps them, labelled stale; a 402
   offers no retry. A Refresh button asks again even inside the cache's age.
+- The heatmap panel, `src/components/panels/HeatmapPanel.tsx` and `src/lib/heatmap.ts`:
+  the screen as a squarified treemap, sectors sized by summed market capitalisation, each
+  tile coloured and labelled with the day's change, a missing change printed as a dash,
+  never 0.0%. Recipe from EodHistoricalData/eodhd-heatmap, `vendor/heatmap.js` (MIT). It
+  asks for the same screen as a screen panel with the same filters and sort, so the two
+  are one request. A second built-in layout, Markets, is offered beside the saved ones;
+  a saved layout of the same name wins.

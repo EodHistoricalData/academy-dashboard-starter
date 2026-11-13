@@ -1,4 +1,4 @@
-import { DEFAULT_LAYOUT, type Layout, parseLayout } from "@/lib/layout";
+import { DEFAULT_LAYOUT, type Layout, MARKETS_LAYOUT, parseLayout } from "@/lib/layout";
 
 /**
  * Named layouts: one document, "layouts", a record of Layout by name. Names are the
@@ -6,7 +6,15 @@ import { DEFAULT_LAYOUT, type Layout, parseLayout } from "@/lib/layout";
  */
 export type SavedLayouts = Record<string, Layout>;
 
-/** The stored document, every layout parsed again: the store is not trusted either. */
+/** The layouts that come with the code, offered to everyone. */
+export const BUILT_IN_LAYOUTS: readonly Layout[] = [DEFAULT_LAYOUT, MARKETS_LAYOUT];
+
+/**
+ * The stored document, every layout parsed again: the store is not trusted either. Then
+ * every built-in the document does not already have by name, so a new layout that ships
+ * with the code reaches people who saved theirs before it existed. A saved layout of the
+ * same name wins: it is the built-in as that person changed it.
+ */
 export function layoutsFrom(raw: unknown): SavedLayouts {
   const out: SavedLayouts = {};
   if (raw !== null && typeof raw === "object" && !Array.isArray(raw)) {
@@ -15,7 +23,10 @@ export function layoutsFrom(raw: unknown): SavedLayouts {
       out[name] = { ...layout, name };
     }
   }
-  return Object.keys(out).length > 0 ? out : { [DEFAULT_LAYOUT.name]: DEFAULT_LAYOUT };
+  for (const layout of BUILT_IN_LAYOUTS) {
+    if (!Object.hasOwn(out, layout.name)) out[layout.name] = layout;
+  }
+  return out;
 }
 
 // A stranger's link opens the default, never an error.

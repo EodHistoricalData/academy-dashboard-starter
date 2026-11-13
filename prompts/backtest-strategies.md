@@ -298,7 +298,85 @@ Group, last bar 106.04, then traded as SIVBQ with the same ISIN,
 whose first session with volume, 28 March 2023, closed at 0.40.
 ```
 
-## 13. Measure drawdown properly (unit 4)
+## 13. Build it twice, and make the two agree (unit 3)
+
+Mock mode on, plan mode on. Start a new session for the first prompt:
+
+```
+Plan first. Do not open src/lib/backtest/strategy.ts or tests/ for
+this. Add twin(bars, params) in src/lib/backtest/twin.ts, returning
+dates, gross and net from the first bar where the slow average exists.
+The unit held at a bar's close is 1 when the signal at the close
+before was true, and 0 on that first bar. Each bar is a night,
+previous close to this open, and a day, this open to this close, both
+on adjusted prices: the open times that bar's adjusted_close / close.
+With fill "next-open" the night earns its move if a unit was held at
+the previous close, and the day if one is held at this close. With
+"signal-close" the whole bar earns its move if a unit is held at this
+close. Each change of position pays (costBps + slippageBps) / 10000
+once, and a unit still held at the last bar pays it once more. Use
+signals() from signal.ts and nothing else from src/lib/backtest. No
+test yet. Show me the diff.
+```
+
+The second, back in your usual session:
+
+```
+Plan first. Add tests/twin.test.ts on the SPY fixture: backtest()
+and twin() give the same dates and, on every bar, gross and net
+within a relative 1e-9, on four runs: the defaults, costs and
+slippage off, fill "signal-close", and fast 5 with slow 10. Assert
+that each run trades at least twice and that one still holds at the
+last bar. Then a split: on a copy of the fixture with every raw open,
+high, low and close before a bar the default run holds through
+multiplied by 4, adjusted_close untouched, both engines give the
+original curves. Change nothing in strategy.ts. Run npm test, then
+show me the diff.
+```
+
+## 14. Audit the adjusted column against what the company did (unit 3)
+
+Mock mode on, plan mode on. Paste this, and under it the Apple rows from this lesson and the two record rows below:
+
+```
+Plan first. Add src/lib/backtest/adjustment.ts with
+auditAdjustments(bars, dividends, splits): the days on which
+adjusted_close / close steps by something other than the record says,
+which is 1 / (1 - D / previous close) on an ex-dividend day with D
+the unadjustedValue, the ratio on a split day, and 1 on any other
+day. An event dated on a day with no bar is checked on the next bar,
+and a bar with a zero close is a problem. Allow 1e-4 plus 1e-4
+divided by each of the two adjusted closes. Add toDividends and
+toSplits for the two endpoints' bodies, using parseSplit. Tests
+first in tests/adjustment.test.ts on the rows below, as literals:
+nothing reported as given, the split day reported when the split is
+left out, the dividend day reported when D is read from value, and
+2020-08-31 reported when 2020-08-27 and 08-28 come from the older
+pull. Run npm test, then show me the diff.
+```
+
+```json
+{"date":"2020-08-07","value":0.205,"unadjustedValue":0.82,"currency":"USD"}
+{"date":"2020-08-31","split":"4.000000/1.000000"}
+```
+
+The older pull is the returns lesson's: 2020-08-27 at 500.04 and 121.1519, 2020-08-28 at 499.23 and 120.9557.
+
+The second puts it on the page:
+
+```
+Plan first. Add src/lib/backtest/actions.ts: loadActions(symbol,
+pulledAt) fetches div/{symbol} and splits/{symbol} through
+marketGet, caches both in .cache/actions with the pulledAt of the
+history they were fetched with, and fetches again when the history
+was pulled again. Add fixtures/div/SPY.US.json with the four
+dividends below and fixtures/splits/SPY.US.json as []. On the
+backtest page, print the audit under the results, and put a mismatch
+at the top. Before writing the fetch, tell me what the page costs
+per load.
+```
+
+## 15. Measure drawdown properly (unit 4)
 
 Work one short equity series out by hand first, and keep your answers: a curve of 1, 1.2, 0.9, 1.0, 1.3 is 25% deep and two bars under water, and its return over drawdown is 1.2 (a 30% return over a 25% hole). Mock mode on, plan mode on, and paste your series and answers under this:
 
@@ -315,7 +393,7 @@ answers below, worked out by hand. No request. Run npm test, then show
 me the diff.
 ```
 
-## 14. In-sample, out-of-sample, and the honest way to tune (unit 4)
+## 16. In-sample, out-of-sample, and the honest way to tune (unit 4)
 
 Mock mode on, plan mode on:
 
@@ -335,7 +413,7 @@ looked out of sample. No request. Tests first in tests/split.test.ts.
 Run npm test, then show me the diff.
 ```
 
-## 15. The history wall (unit 4)
+## 17. The history wall (unit 4)
 
 Mock mode on, plan mode on:
 
@@ -353,7 +431,7 @@ regimes in sample, regimes not tested) from those numbers, and show me
 the diff. I will edit the regimes myself.
 ```
 
-## 16. Publish the report, and what the exam checks (unit 4)
+## 18. Publish the report, and what the exam checks (unit 4)
 
 The agent cannot see this lesson, so the prompt carries the report's contents. Mock mode on, plan mode on, and paste:
 

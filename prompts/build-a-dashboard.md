@@ -236,7 +236,110 @@ fixture, and one per failure kind. Mock mode; Refresh only repeats the request t
 test, typecheck, lint and check:leak, and show me the diff.
 ```
 
-## 9. Alert rules as data (unit 3)
+## 9. A heatmap panel, ported from an open-source app (unit 2)
+
+Mock mode on, plan mode on, and paste:
+
+```
+Clone https://github.com/EodHistoricalData/eodhd-heatmap into
+../eodhd-heatmap, next to this repo, and read vendor/heatmap.js.
+Change nothing in either repo. Give me the recipe as a list of rules,
+each with the file and line it comes from: how the treemap lays out
+its tiles, how it groups and sizes sectors, what weight a company with
+no market cap gets, how a change becomes a colour (every cut-off and
+every colour), and what a tile shows when its change is unknown. No
+code.
+```
+
+Then, once the rules read right:
+
+```
+Plan, then build, a heatmap panel from those rules. In a new
+src/lib/heatmap.ts: squarify(items, rect), the squarified layout,
+where a weight that is missing or not positive counts as 1;
+treemap(rows, rect), sectors sized by summed market_capitalization,
+largest first, and each sector's rows laid out inside its rectangle
+below a strip for its name; changeOf(row), refund_1d_p, or null when
+that is not a number, never 0; changeColor(change), the seven steps
+on the change rounded to one decimal. The file opens with a comment
+naming EodHistoricalData/eodhd-heatmap, vendor/heatmap.js and the MIT
+licence. Write tests/heatmap.test.ts first: areas proportional to
+weights, filling the rectangle with no overlap; every colour cut-off;
+a row with no change giving null. Add a heatmap panel type whose
+config is a screen config and whose dataNeeds asks for exactly the
+screen a screen panel with the same filters and sort asks for. It
+draws an SVG; each tile prints its ticker and signed change, or a
+dash when the change is unknown, carries an aria-label that says the
+same in words, and reports a click through onSelect. Add a second
+built-in layout, Markets: a heatmap of the starter's screen sorted by
+market cap, largest first, and a quote panel that follows the
+selection; layoutsFrom offers it beside the saved layouts unless one
+already has that name. Leave DEFAULT_LAYOUT alone. Mock mode. Run npm
+test, typecheck, lint and check:leak, and show me the diff.
+```
+
+## 10. News sentiment, a new endpoint measured before it is drawn (unit 2)
+
+Mock mode needs an answer to draw on, and ours is the live one of 13 November 2026 for Apple, Microsoft, NVIDIA and Vodafone. With the starter as your `upstream` remote, run `git fetch upstream` and then `git checkout upstream/ref/build-a-dashboard/u2 -- fixtures/sentiments.json`. Then mock mode on, plan mode on, and paste:
+
+```
+Plan, then build, a sentiment panel. First the endpoint, in one
+commit: sentiments in ALLOWED_ENDPOINTS in src/lib/proxy.ts, and in
+CALL_COST in src/lib/cost.ts at 5 calls per symbol, priced per symbol
+like news. The answer is an object keyed by symbol, each a list of
+days, newest first, with date, count and normalized; a symbol with
+nothing is left out, and when none has anything the body is [], an
+empty array. Teach src/lib/mock.ts to answer from
+fixtures/sentiments.json in that shape, the empty array included. In
+a new src/lib/sentiment.ts: tone(days), the mean of normalized
+weighted by count, a count of 0 weighing 1 and a missing normalized
+skipped; articles(days); trend(days), the newer half of the days
+against the older, up or down past 0.05, flat otherwise; and one
+reading per symbol that shows no tone below MIN_ARTICLES = 20. No
+fear or greed bands. Write tests/sentiment.test.ts first. Add a
+sentiment panel type: one to five symbols, follows false, dataNeeds
+asking for sentiment for them. The container unions those symbols
+across panels into one request and keeps the answer for an hour. The
+panel's table sorts by tone, highest first, says how many articles
+each reading rests on, and puts the too-few rows last. Add it to the
+Markets layout on two symbols. Tell me with estimateCalls what one
+load of Markets costs now. Mock mode. Run npm test, typecheck, lint
+and check:leak, and show me the diff.
+```
+
+## 11. A portfolio panel whose sums you can check (unit 2)
+
+Mock mode on, plan mode on, and paste:
+
+```
+Plan, then build, a portfolio panel. In a new src/lib/portfolio.ts:
+a Trade has id, symbol, side (buy or sell), date, quantity, price and
+fees. parseTrades(raw) refuses, never repairs: a symbol that is not
+US-listed, a quantity or price that is not positive, negative fees, a
+bad date, and a sell larger than what is held on its date.
+openLots(trades) is first in, first out per symbol, buys before sells
+on the same day, each lot carrying its fees per share.
+positions(trades, quotes) gives quantity, cost, average cost, price
+(the quote's close), value, unrealised gain, the day's change and
+weight. Shares from lots dated on or after the quote's own day
+move from what was paid, the rest from the previous close. A position
+with no price is left out of the totals and counted, never valued at
+zero; weights are over priced positions. The file opens with a comment
+naming EodHistoricalData/eodhd-portfolio-tracker,
+vendor/calculations.js and the MIT licence, with a line each for what
+is not ported: realised gains, dividends, splits, other currencies.
+Write tests/portfolio.test.ts first, with sums worked by hand: buy 10
+at 100 with fees 5, buy 10 at 120, sell 15 leaves 5 at a cost of 600;
+and a day with 10 shares held overnight and 5 bought that day. Add a
+portfolio panel type whose config holds the trades and whose dataNeeds
+names the symbols held: a table, a totals row, and a small form that
+adds a trade through onConfigChange and says why when parseTrades
+refuses it. Add it to the Markets layout with a few example trades.
+Mock mode. Run npm test, typecheck, lint and check:leak, and show me
+the diff.
+```
+
+## 12. Alert rules as data (unit 3)
 
 Mock mode on, plan mode on, and paste:
 
@@ -268,7 +371,7 @@ work. Mock mode, no new
 request. Run npm test, typecheck, lint and check:leak; diff first.
 ```
 
-## 10. Why your alert did not fire (unit 3)
+## 13. Why your alert did not fire (unit 3)
 
 Mock mode on, plan mode on, and paste:
 
@@ -290,7 +393,7 @@ allowance. Run npm test, typecheck, lint and check:leak, and show me
 the diff first.
 ```
 
-## 11. An alert that fires 300 times is mute (unit 3)
+## 14. An alert that fires 300 times is mute (unit 3)
 
 Mock mode on, plan mode on, and paste:
 
@@ -311,7 +414,7 @@ each test named with its count. No real data: the series is written in the test.
 check:leak, and show me the diff.
 ```
 
-## 12. Review the whole surface (unit 3)
+## 15. Review the whole surface (unit 3)
 
 Write your own findings into `REVIEW.md` first. Then start a fresh session, so the reviewer did not build what it reads, and paste:
 
@@ -327,7 +430,7 @@ still draws when the store cannot be reached. Fix nothing. Save the
 review to notes/review-cockpit.md, and make no request.
 ```
 
-## 13. What "real-time" actually means (unit 4)
+## 16. What "real-time" actually means (unit 4)
 
 Mock mode on, plan mode on, and paste:
 
@@ -349,7 +452,7 @@ my allowance, and wait for my yes. Mock mode for the tests. Mock mode for everyt
 typecheck, lint and check:leak, and show me the diff first.
 ```
 
-## 14. The refresh budget (unit 4)
+## 17. The refresh budget (unit 4)
 
 Mock mode on, plan mode on, and paste:
 
@@ -374,7 +477,7 @@ current layout before wiring the loop. Run npm test, typecheck, lint and
 check:leak, and show me the diff.
 ```
 
-## 15. The real-time wall (unit 4)
+## 18. The real-time wall (unit 4)
 
 Mock mode on, plan mode on, and paste:
 

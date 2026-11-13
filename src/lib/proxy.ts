@@ -26,6 +26,7 @@ export const ALLOWED_ENDPOINTS: readonly string[] = [
   "intraday",
   "search",
   "exchange-symbol-list",
+  "sentiments",
 ];
 
 /** How long to ask the caller to wait after a 429 that did not say. */

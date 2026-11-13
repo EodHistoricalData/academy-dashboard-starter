@@ -1,4 +1,4 @@
-import { DEFAULT_LAYOUT, type Layout, MARKETS_LAYOUT, parseLayout } from "@/lib/layout";
+import { DEFAULT_LAYOUT, type Layout, MARKETS_LAYOUT, type Panel, parseLayout } from "@/lib/layout";
 
 /**
  * Named layouts: one document, "layouts", a record of Layout by name. Names are the
@@ -27,6 +27,17 @@ export function layoutsFrom(raw: unknown): SavedLayouts {
     if (!Object.hasOwn(out, layout.name)) out[layout.name] = layout;
   }
   return out;
+}
+
+/**
+ * The layout with one panel's config replaced. The panel is found by identity, not by id:
+ * a stored layout can hold two panels with the same id, and each keeps its own config.
+ */
+export function withPanelConfig(layout: Layout, panel: Panel, config: unknown): Layout {
+  return {
+    ...layout,
+    panels: layout.panels.map((p) => (p === panel ? ({ ...p, config } as Panel) : p)),
+  };
 }
 
 // A stranger's link opens the default, never an error.

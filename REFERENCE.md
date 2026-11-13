@@ -372,3 +372,13 @@ a choice to you, the section for that unit says which one we made. Yours can dif
   tone of twelve large symbols sat between 0.57 and 0.87, all in one band. `sentiments` is a new endpoint at 5 calls a symbol,
   in the proxy's allowlist and `cost.ts`; every panel's symbols go out as one request,
   kept an hour. The mock answers `[]` when no asked symbol has news, as the API does.
+- The portfolio panel, `src/components/panels/PortfolioPanel.tsx` and
+  `src/lib/portfolio.ts`: open positions from trades kept in the panel's config, FIFO lots
+  with their fees, value, unrealised P&L, today's move (shares bought on the quote's day
+  move from what was paid), weights and totals over priced positions only; an unpriced
+  position is left out and counted, never valued at zero. Recipe from
+  EodHistoricalData/eodhd-portfolio-tracker, `vendor/calculations.js` (MIT). US listings
+  only, and no realised P&L, dividends or splits. A trade is added through
+  `onConfigChange`, which the cockpit now checks and saves with the layout. Priced before
+  wiring: Markets costs 18 calls a load live (a screen at 5, three quotes, news tone for
+  two symbols at 10); the default layout's 13 are unchanged.
